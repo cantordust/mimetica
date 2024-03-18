@@ -4,44 +4,23 @@ from typing import *
 import sys
 
 # --------------------------------------
-from PySide6.QtCore import (
-    Qt,
-    Slot,
-    QThread,
-)
-from PySide6.QtGui import (
-    QAction,
-    QKeySequence,
-    QPixmap,
-    QIcon,
-)
+from PySide6.QtGui import QAction
+from PySide6.QtGui import QKeySequence
+from PySide6.QtCore import Slot
 
-from PySide6.QtWidgets import (
-    QMainWindow,
-    QApplication,
-    QFileDialog,
-    QMessageBox,
-    QToolBar,
-    QDockWidget,
-    QProgressDialog,
-    QTabWidget,
-    QWidget,
-)
+from PySide6.QtWidgets import QMainWindow
+from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QFileDialog
+from PySide6.QtWidgets import QTabWidget
 
 # --------------------------------------
-from mimetica import (
-    SplitView,
-    Stack,
-)
+import multiprocessing as mp
 
 # --------------------------------------
 from pathlib import Path
 
 # --------------------------------------
-from mimetica import Canvas
-from mimetica import Dock
 from mimetica import Tab
-from mimetica import utils
 
 
 class MainWindow(QMainWindow):
@@ -49,28 +28,11 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.setWindowTitle("Mimetica")
 
-        # # The display canvas
-        # # ==================================================
-        # self.canvas = Canvas()
-
-        # # Splitview widget
-        # # ==================================================
-        # self.splitview = SplitView(self.canvas)
-        # self.splitview.setSizes((1, 1))
-        # self.setCentralWidget(self.splitview)
-
         # Tab widget
         # ==================================================
         self.tabs = QTabWidget()
         self.setup_tabs()
         self.setCentralWidget(self.tabs)
-
-        # Status bar
-        # ==================================================
-        self.pixmap = QPixmap()
-        self.status = self.statusBar()
-        self.status.showMessage("Ready")
-        self.setup_statusbar()
 
         # Menu
         # ==================================================
@@ -78,32 +40,18 @@ class MainWindow(QMainWindow):
         self.main_menu = self.menu.addMenu("File")
         self.setup_menu()
 
-        # # Toolbar
-        # # ==================================================
-        # self.toolbar = QToolBar(floatable=False, movable=False)
-        # self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
-
         # Window dimensions
         # ==================================================
         geometry = self.screen().availableGeometry()
 
         # Slots & signals
         # ==================================================
-        # self.dock.threshold_spinbox.valueChanged.connect(self._set_threshold)
-        # self.canvas.update_plots.connect(lambda layer: self.splitview.plot(layer))
-        # self.dock.smoothness_spinbox.valueChanged.connect(self._set_smoothness)
-
 
     def setup_tabs(self):
-
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self._remove_tab)
-        # self.tabs.addTab(Tab(), "34")
-        # self.tabs.addTab(Tab(), "53")
-        # self.tabs.addTab(Tab(), "19")
 
     def setup_menu(self):
-
         # Main menu
         # ==================================================
 
@@ -123,16 +71,11 @@ class MainWindow(QMainWindow):
         act_exit.triggered.connect(self.close)
         self.main_menu.addAction(act_exit)
 
-    def setup_statusbar(self):
-
-        pass
-
     def open_file(
         self,
-        file: Path = None,
+        file_name: Path = None,
     ):
-
-        if not file:
+        if not file_name:
             filter = [
                 "BMP (*.bmp)",
                 "PNG (*.png)",
@@ -142,77 +85,52 @@ class MainWindow(QMainWindow):
 
             filter = ";;".join([f"*.{f}" for f in filter])
 
-            file = QFileDialog.getOpenFileName(
+            file_name = QFileDialog.getOpenFileName(
                 self,
                 "Open file...",
                 filter=filter,
             )[0]
 
-            if file == "":
-                QMessageBox.information(
-                    self,
-                    self.windowTitle(),
-                    f"Invalid file name",
-                )
-                return
-
-        self.open_stack([file])
+        if file_name != "":
+            self.open_stack([file_name])
 
     def open_stack(
         self,
         stack: Path = None,
     ):
-
         if not stack:
-
             stack = QFileDialog.getExistingDirectory(
                 self,
                 "Open stack...",
             )
             stack = Path(stack)
 
-        if stack.is_file():
-            QMessageBox("Please select a valid stack")
+        if stack == "":
             return
-
-        extensions = (
-            ".bmp",
-            ".tif",
-            ".tiff",
-            ".png",
-            ".jpg",
-            ".jpeg",
-        )
 
         paths = []
-        for file in stack.iterdir():
-            if str(file).startswith("."):
-                continue
+        if isinstance(stack, list):
+            paths = [Path(p) for p in stack]
 
-            if file.suffix.lower() in extensions:
-                paths.append(file.resolve().absolute())
+        elif isinstance(stack, Path):
+            extensions = (
+                ".bmp",
+                ".tif",
+                ".tiff",
+                ".png",
+                ".jpg",
+                ".jpeg",
+            )
 
-        if len(paths) == 0:
-            QMessageBox("The specified path does not contain any images.")
-            return
+            for file in stack.iterdir():
+                if str(file).startswith("."):
+                    continue
 
-        self._add_tab(paths)
+                if file.suffix.lower() in extensions:
+                    paths.append(file.resolve().absolute())
 
-    # @Slot()
-    # def _toggle_dock(self):
-    #     if self.dock.isVisible():
-    #         self.dock.hide()
-    #     else:
-    #         self.dock.show()
-
-    # @Slot()
-    # def _set_threshold(
-    #     self,
-    #     update: bool = True,
-    # ):
-
-    #     self.dock._update_threshold()
-    #     self.stack._update_threshold(self.dock.threshold)
+        if len(paths) != 0:
+            self._add_tab(paths)
 
     @Slot(int)
     def _remove_tab(
@@ -222,44 +140,25 @@ class MainWindow(QMainWindow):
         if pos < self.tabs.count():
             self.tabs.removeTab(pos)
 
-    # @Slot()
-    # def _set_smoothness(
-    #     self,
-    #     update: bool = True,
-    # ):
-
-    #     self.dock._update_smoothness()
-    #     # self.stack._update_smoothness(self.dock.smoothness)
-    #     self.canvas._make_contours()
-
-    #     for idx in range(len(self.stack.current_layer.contours)):
-    #         self.stack.current_layer.contours[idx] = utils.smoothen(self.stack.current_layer.contours[idx], self.stack.smoothness)
-
-    #     self.canvas._draw(auto_range=True)
-
     def _add_tab(
         self,
         paths: List[Path],
     ):
-
         tab = Tab(paths)
-        # self.stack = Stack(paths[:10])
-        # self.canvas.set_stack(self.stack, auto_range=True)
         name = paths[0].parent.name
         idx = self.tabs.addTab(tab, name)
         self.tabs.setCurrentIndex(idx)
 
 
 def run():
+
+    # Set the multiprocessing context
+    mp.set_start_method("forkserver")
+
+    # The main feature
     app = QApplication([])
-
     mw = MainWindow()
-    mw.resize(1200, 800)
+    # mw.resize(1200, 800)
+    mw.showMaximized()
     mw.show()
-
-    root_dir = Path(__file__).parent.parent.parent
-    stack = root_dir / "local/image_stacks/34"
-
-    # mw.open_stack(stack)
-
     sys.exit(app.exec())

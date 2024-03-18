@@ -1,0 +1,17 @@
+name: mimetica
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - loguru
+  - numpy
+  - opencv
+  - pip
+  - pyinstaller
+  - pyqtgraph
+  - pyside6
+  - python-decouple
+  - scikit-image[optional]
+  - shapely
+  - pip:
+      - -e .

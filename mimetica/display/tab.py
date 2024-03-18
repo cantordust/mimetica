@@ -1,56 +1,31 @@
 from typing import *
 
 # --------------------------------------
-import sys
+from PySide6.QtCore import Qt
+from PySide6.QtCore import Slot
+from PySide6.QtCore import QThread
+from PySide6.QtCore import Signal
 
-# --------------------------------------
-import threading
+from PySide6.QtGui import QAction
+from PySide6.QtGui import QIcon
 
-# --------------------------------------
-from PySide6.QtCore import (
-    Qt,
-    Slot,
-    QThread,
-    Signal,
-)
-from PySide6.QtGui import (
-    QAction,
-    QKeySequence,
-    QPixmap,
-    QIcon,
-)
-
-from PySide6.QtWidgets import (
-    QMainWindow,
-    QApplication,
-    QFileDialog,
-    QMessageBox,
-    QToolBar,
-    QDockWidget,
-    QProgressDialog,
-    QTabWidget,
-    QWidget,
-    QGridLayout,
-)
-
-# --------------------------------------
-from mimetica import (
-    SplitView,
-    Stack,
-)
+from PySide6.QtWidgets import QMainWindow
+from PySide6.QtWidgets import QToolBar
+from PySide6.QtWidgets import QDockWidget
+from PySide6.QtWidgets import QProgressBar
 
 # --------------------------------------
 from pathlib import Path
 
 # --------------------------------------
+from mimetica import logger
 from mimetica import Canvas
 from mimetica import Dock
-from mimetica import utils
-from mimetica import logger
+from mimetica import SplitView
+from mimetica import Stack
 
 
 class Tab(QMainWindow):
-
     load_stack = Signal()
 
     def __init__(
@@ -58,6 +33,8 @@ class Tab(QMainWindow):
         paths: List[Path],
     ):
         QMainWindow.__init__(self)
+
+        self.paths = paths
 
         # The display canvas
         # ==================================================
@@ -71,7 +48,7 @@ class Tab(QMainWindow):
 
         # Dock
         # ==================================================
-        self.dock = Dock(features=QDockWidget.DockWidgetFeature.DockWidgetClosable | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
+        self.dock = Dock(features=QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dock)
 
         # Toolbar
@@ -80,12 +57,6 @@ class Tab(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
         self.setup_toolbar()
 
-        # Slots & signals
-        # ==================================================
-        # self.dock.threshold_spinbox.valueChanged.connect(self._set_threshold)
-        self.canvas.update_plots.connect(lambda layer: self.splitview.plot(layer))
-        # self.dock.smoothness_spinbox.valueChanged.connect(self._set_smoothness)
-
         # Thread for preventing the GUI from blocking
         # ==================================================
         self.worker = QThread()
@@ -93,28 +64,57 @@ class Tab(QMainWindow):
 
         # The layer stack
         # ==================================================
-        paths = paths
         # logger.info(f'Loading stack | TID: {threading.get_ident()}')
-        self.stack = Stack(paths, self.dock.threshold)
-        self.stack.update_progress.connect(lambda: self.pd.setValue(self.pd.value() + 1))
+        self.stack = Stack(paths, self.dock.show_inactive_plots)
         self.load_stack.connect(self.stack.process)
         self.stack.set_canvas.connect(self.set_canvas)
         self.stack.abort.connect(self._abort)
         self.stack.moveToThread(self.worker)
-        self.pd = QProgressDialog("Loading layers", "Cancel", 1, len(paths))
-        self.pd.setCancelButton(None)
-        self.pd.setWindowFlags(~(Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowCloseButtonHint))
-        self.pd.setAutoClose(True)
+
+        # Status bar
+        # ==================================================
+        self.status_bar = self.statusBar()
+        self.progress_bar = QProgressBar()
+        self.status_bar.addPermanentWidget(self.progress_bar)
+        self.progress_bar.setGeometry(30, 40, 200, 25)
+        self.progress_bar.setValue(0)
+        self.progress_bar.hide()
+        self.setup_statusbar()
+
+        # Slots & signals
+        # ==================================================
+        self.stack.update_progress.connect(self._update_progress_bar)
+        self.dock.sig_show_inactive_plots.connect(self.splitview._show_inactive_plots)
+        self.dock.sig_set_inactive_plot_opacity.connect(
+            self.splitview._set_inactive_plot_opacity
+        )
 
         # Load the tab
         # ==================================================
-        self.load()
+        self._load()
+
+    def setup_statusbar(self):
+
+        pass
+
+    def _update_progress_bar(self, path: Path):
+        self.status_bar.showMessage(f"Processing {path}")
+        self.progress_bar.setValue(self.progress_bar.value() + 1)
 
     def setup_toolbar(self):
 
+        # Dock widget toggle
+        act_dock = QAction(
+            QIcon.fromTheme("document-properties"), "Show docking panel", self.toolbar
+        )
+        act_dock.triggered.connect(self._toggle_dock)
+        self.toolbar.addAction(act_dock)
+
         # Scale image button
-        act_scale_image = QAction(QIcon.fromTheme("zoom-fit-best"), "Scale image to fit", self.toolbar)
-        # act_scale_image.triggered.connect(self.canvas._reset_zoom)
+        act_scale_image = QAction(
+            QIcon.fromTheme("zoom-fit-best"), "Scale image to fit", self.toolbar
+        )
+        act_scale_image.triggered.connect(self.canvas._reset_zoom)
         self.toolbar.addAction(act_scale_image)
 
         # # Find centre
@@ -132,11 +132,6 @@ class Tab(QMainWindow):
         # act_plot.triggered.connect(lambda: self.splitview.plot(self.stack.current_layer))
         # self.toolbar.addAction(act_plot)
 
-        # Dock widget toggle
-        act_dock = QAction(QIcon.fromTheme("document-properties"), "Show docking panel", self.toolbar)
-        act_dock.triggered.connect(self._toggle_dock)
-        self.toolbar.addAction(act_dock)
-
     @Slot()
     def _toggle_dock(self):
         if self.dock.isVisible():
@@ -149,35 +144,23 @@ class Tab(QMainWindow):
         self,
         update: bool = True,
     ):
+        self.dock._trigger_show_inactive_plots()
+        self.stack._update_threshold(self.dock.show_inactive_plots)
 
-        self.dock._update_threshold()
-        self.stack._update_threshold(self.dock.threshold)
-
-    # @Slot()
-    # def _set_smoothness(
-    #     self,
-    #     update: bool = True,
-    # ):
-
-    #     self.dock._update_smoothness()
-    #     # self.stack._update_smoothness(self.dock.smoothness)
-    #     self.canvas._make_contours()
-
-    #     for idx in range(len(self.stack.current_layer.contours)):
-    #         self.stack.current_layer.contours[idx] = utils.smoothen(self.stack.current_layer.contours[idx], self.stack.smoothness)
-
-    #     self.canvas._draw(auto_range=True)
-
-    def load(self):
-
+    def _load(self):
+        self.status_bar.showMessage(f"Loading stack from {self.paths[0].parent}...")
+        self.progress_bar.show()
         self.load_stack.emit()
 
     def _abort(self):
-        self.pd.close()
         self.worker.quit()
 
     @Slot()
     def set_canvas(self):
 
+        self.status_bar.showMessage(f"Setting up canvas...")
+        self.progress_bar.setValue(0)
+        self.progress_bar.hide()
         self.worker.quit()
         self.canvas.set_stack(self.stack, auto_range=True)
+        self.status_bar.clearMessage()

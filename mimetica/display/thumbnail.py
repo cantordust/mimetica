@@ -1,38 +1,38 @@
 from typing import *
 
 # --------------------------------------
-import numpy as np
+from PySide6.QtCore import QEvent
+from PySide6.QtCore import Signal
 
-# --------------------------------------
-from PySide6.QtCore import QEvent, Signal
-from PySide6.QtGui import (
-    QPixmap,
-    QImage,
-)
-from PySide6.QtWidgets import (
-    QWidget,
-    QLabel,
-)
+from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QImage
+
+from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QLabel
 
 # --------------------------------------
 from mimetica import Layer
 
+
 class Thumbnail(QLabel):
 
-    _selected = Signal(Layer)
+    _selected = Signal(int)
 
     def __init__(
         self,
+        index: int,
         layer: Layer,
         scale: int = 75,
         parent: QWidget = None,
     ):
         super().__init__(parent)
 
+        self.index = index
         self.layer = layer
 
         (height, width) = layer.image.shape
-        qimg = QImage((layer.image.astype(np.uint8)).data, height, width, width, QImage.Format.Format_Indexed8)
+
+        qimg = QImage(layer.path)
         pxm = QPixmap(qimg).scaledToHeight(scale)
         self.setPixmap(pxm)
         self.setFixedHeight(scale)
@@ -41,4 +41,4 @@ class Thumbnail(QLabel):
         self,
         event: QEvent,
     ):
-        self._selected.emit(self.layer)
+        self._selected.emit(self.index)

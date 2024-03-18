@@ -13,9 +13,13 @@ from mimetica.display.dock import Dock
 from mimetica.display.thumbnail import Thumbnail
 from mimetica.display.image import ImageView
 from mimetica.display.canvas import Canvas
-from mimetica.display.chart import Chart
+from mimetica.display.plot import Plot
 from mimetica.display.splitview import SplitView
 from mimetica.display.tab import Tab
+
+# --------------------------------------
+import pyqtgraph
+# pyqtgraph.setConfigOption('imageAxisOrder', 'row-major')
 
 __all__ = [
     "Thumbnail",
@@ -23,7 +27,7 @@ __all__ = [
     "ImageView",
     "Dock",
     "Tab",
-    "Chart",
+    "Plot",
     "SplitView",
     "Layer",
     "Stack",

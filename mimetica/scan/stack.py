@@ -4,44 +4,18 @@ from typing import *
 from pathlib import Path
 
 # --------------------------------------
-import threading
-
-# --------------------------------------
-from multiprocessing.pool import Pool
-
-# --------------------------------------
 import numpy as np
 
 # --------------------------------------
-import skimage as ski
-import skimage.measure as skm
-
-# --------------------------------------
-import cv2 as cv
-
-# --------------------------------------
 import shapely as shp
-import shapely.affinity as sha
-import shapely.geometry as shg
-from shapely.ops import split
-from shapely.ops import snap
-from shapely.geometry import Point
-from shapely.geometry import Polygon
-from shapely.geometry import MultiPoint
-from shapely.geometry import LineString
-from shapely.geometry import MultiLineString
-from shapely.geometry import GeometryCollection
 
 # --------------------------------------
 from concurrent.futures import ProcessPoolExecutor
 
 # --------------------------------------
-from PySide6.QtCore import (
-    QEvent,
-    Slot,
-    Signal,
-    QObject,
-)
+from PySide6.QtCore import Slot
+from PySide6.QtCore import Signal
+from PySide6.QtCore import QObject
 
 # --------------------------------------
 from mimetica import Layer
@@ -50,8 +24,7 @@ from mimetica import logger
 
 
 class Stack(QObject):
-
-    update_progress = Signal()
+    update_progress = Signal(Path)
     set_canvas = Signal()
     abort = Signal()
 
@@ -61,22 +34,13 @@ class Stack(QObject):
     ):
         layer = Layer(
             args["path"],
-            args["image"],
-            args["threshold"],
         )
+
+        # logger.info(f"Processed {layer.path} | TID: {os.getpid()}")
 
         return layer
 
-
-    def __init__(
-        self,
-        paths: List[Path],
-        # smoothness: int = 5,
-        threshold: int = 70,
-        *args,
-        **kwargs
-    ):
-
+    def __init__(self, paths: List[Path], threshold: int = 70, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Save the parameters
@@ -90,7 +54,7 @@ class Stack(QObject):
         self.centre = None
         self.radius = None
         self.layers = []
-        self.current_layer: Layer = None
+        self.current_layer = 0
 
         # Create a merged stack
         # ==================================================
@@ -98,11 +62,8 @@ class Stack(QObject):
 
     def _update_current_layer(
         self,
-        layer: Layer = None,
+        layer: int = 0,
     ):
-        if layer is None:
-            layer = self.layers[0]
-
         self.current_layer = layer
 
     @Slot(int, int)
@@ -113,24 +74,6 @@ class Stack(QObject):
     ):
         self.centre = np.array([x, y], dtype=np.int32)
 
-    # @Slot(bool)
-    # def _find_centre(
-    #     self,
-    #     reset: bool = False,
-    # ):
-
-    #     # Sanity check
-    #     if self.centre is not None:
-
-    #         if not (0 < self.centre[0] < self.merged.shape[0] and 0 < self.centre[1] < self.merged.shape[1]):
-    #             reset = True
-
-    #     # Find the centre
-    #     if reset or self.centre is None:
-    #         properties = skm.regionprops(self.merged, self.merged)
-    #         centre = properties[0].centroid
-    #         self.centre = (round(centre[0]), round(centre[1]))
-
     def _update_threshold(
         self,
         threshold: int,
@@ -139,77 +82,53 @@ class Stack(QObject):
 
     def _compute_mbc(self):
         self.mbc = utils.compute_mbc(self.merged).simplify(1, preserve_topology=True)
-        self.centre = np.array(list(reversed(shp.centroid(self.mbc).coords)), dtype=np.int32)[0]
+        self.centre = np.array(
+            list(reversed(shp.centroid(self.mbc).coords)), dtype=np.int32
+        )[0]
         self.radius = int(shp.minimum_bounding_radius(self.mbc))
 
-    Slot()
+    @Slot()
     def process(self):
+        logger.info(f"Loading stack...")
 
-        # logger.info(f'Loading stack...')
+        # Layer factory
+        # ==================================================
+        args = [{"path": path} for path in self.paths]
 
-        try:
+        with ProcessPoolExecutor() as executor:
+            for layer in executor.map(Stack.make_layer, args):
+                self.layers.append(layer)
+                self.update_progress.emit(layer.path)
 
-            images = []
-            for img_path in self.paths:
+        self._update_current_layer()
 
-                content = ski.io.imread(str(img_path), as_gray=True).astype(np.uint32)
+        # Calibrate the stack based on all the images
+        # ==================================================
+        images = []
+        for layer in self.layers:
 
-                # Pad the image
-                # ==================================================
-                hpad = int(0.2 * content.shape[0])
-                wpad = int(0.2 * content.shape[1])
+            # print(f"==[ img_path: {img_path}")
 
-                lpad, rpad = wpad, wpad
-                tpad, bpad = hpad, hpad
+            minval = layer.image.min()
+            maxval = layer.image.max()
 
-                minval = content.min()
-                maxval = content.max()
-                content = ((2**16 - 1) * (content - minval) / (maxval - minval)).astype(np.uint32)
-                content = np.pad(content, ((lpad, rpad), (tpad, bpad)), mode="constant", constant_values=0)
+            if self.merged is None:
+                self.merged = layer.image.copy().astype(np.uint32)
+            else:
+                self.merged += layer.image
 
-                images.append(content)
+        # Scale the merged stack
+        # ==================================================
+        minval = self.merged.min()
+        maxval = self.merged.max()
+        self.merged = (255 * (self.merged - minval) / (maxval - minval)).astype(
+            np.ubyte
+        )
 
-                if self.merged is None:
-                    self.merged = content.copy()
-                else:
-                    self.merged += content
+        # Compute the minimal bounding circle
+        # ==================================================
+        self._compute_mbc()
 
-            # Scale the merged stack
-            # ==================================================
-            minval = self.merged.min()
-            maxval = self.merged.max()
-            self.merged = ((2**16 - 1) * (self.merged - minval) / (maxval - minval)).astype(np.uint32)
-
-            # Compute the minimal bounding circle
-            # ==================================================
-            self._compute_mbc()
-
-            # Layer factory
-            # ==================================================
-            args = [
-                {
-                    "path": path,
-                    "image": image,
-                    "threshold": self.threshold,
-                }
-                for (path, image) in zip(self.paths, images)
-            ]
-
-            with ProcessPoolExecutor() as executor:
-                for layer in executor.map(Stack.make_layer, args):
-
-                    self.layers.append(layer)
-                    self.update_progress.emit()
-                    # logger.info(f'processed {layer.path} | TID: {threading.get_ident()}')
-
-            # The current layer
-            # ==================================================
-            self._update_current_layer()
-
-            # Set the stack on the canvas
-            # ==================================================
-            self.set_canvas.emit()
-
-        except Exception as e:
-            logger.info(f'Exception caught: {e}')
-            self.abort.emit()
+        # Set the stack on the canvas
+        # ==================================================
+        self.set_canvas.emit()

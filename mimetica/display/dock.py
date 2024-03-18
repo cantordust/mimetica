@@ -1,25 +1,22 @@
 from typing import *
 
 # --------------------------------------
-from PySide6.QtCore import (
-    Qt,
-    Slot,
-)
+from PySide6.QtCore import Qt
+from PySide6.QtCore import Signal
 
-from PySide6.QtWidgets import (
-    QWidget,
-    QDockWidget,
-    QSpinBox,
-    QLabel,
-    QGridLayout,
-    QFormLayout,
-    QHBoxLayout,
-    QVBoxLayout,
-    QSizePolicy,
-)
+from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QDockWidget
+from PySide6.QtWidgets import QSpinBox
+from PySide6.QtWidgets import QCheckBox
+from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QFormLayout
+from PySide6.QtWidgets import QSizePolicy
 
 
 class Dock(QDockWidget):
+    sig_show_inactive_plots = Signal(bool)
+    sig_set_inactive_plot_opacity = Signal(int)
+
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -36,27 +33,33 @@ class Dock(QDockWidget):
 
         self.grid = QFormLayout()
 
-        # Threshold spinbox
+        # Show all plots checkbox
         # ==================================================
-        self.threshold = 70
-        self.threshold_lbl = QLabel(self)
-        self.threshold_lbl.setText(f"Threshold:")
-        self.threshold_spinbox = QSpinBox(self)
-        self.threshold_spinbox.setValue(self.threshold)
-        self.threshold_spinbox.setRange(0, 255)
-        self.grid.addRow(self.threshold_lbl, self.threshold_spinbox)
-        self._update_threshold()
+        self.show_inactive_plots = True
+        self.show_inactive_plots_lbl = QLabel(self)
+        self.show_inactive_plots_lbl.setText(f"Show all plots:")
+        self.show_inactive_plots_cbox = QCheckBox(self)
+        self.show_inactive_plots_cbox.setChecked(self.show_inactive_plots)
+        self.grid.addRow(self.show_inactive_plots_lbl, self.show_inactive_plots_cbox)
+        self.show_inactive_plots_cbox.stateChanged.connect(
+            self._trigger_show_inactive_plots
+        )
 
-        # # Smoothness slider
-        # # ==================================================
-        # self.smoothness = 5
-        # self.smoothness_lbl = QLabel(self)
-        # self.smoothness_lbl.setText(f"Smoothness:")
-        # self.smoothness_spinbox = QSpinBox(self)
-        # self.smoothness_spinbox.setValue(self.smoothness)
-        # self.smoothness_spinbox.setRange(0, 50)
-        # grid.addRow(self.smoothness_lbl, self.smoothness_spinbox)
-        # self._update_smoothness()
+        # Plot alpha slider
+        # ==================================================
+        self.inactive_plot_opacity = 17
+        self.inactive_plot_opacity_lbl = QLabel(self)
+        self.inactive_plot_opacity_lbl.setText(f"Inactive plot opacity:")
+        self.inactive_plot_opacity_spinbox = QSpinBox(self)
+        self.inactive_plot_opacity_spinbox.setRange(0, 255)
+        self.inactive_plot_opacity_spinbox.setSingleStep(1)
+        self.inactive_plot_opacity_spinbox.setValue(self.inactive_plot_opacity)
+        self.grid.addRow(
+            self.inactive_plot_opacity_lbl, self.inactive_plot_opacity_spinbox
+        )
+        self.inactive_plot_opacity_spinbox.valueChanged.connect(
+            self._trigger_set_inactive_plot_opacity
+        )
 
         # Set up the main widget
         # ==================================================
@@ -65,8 +68,10 @@ class Dock(QDockWidget):
         self.body.setLayout(self.grid)
         self.body.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
 
-    def _update_threshold(self):
-        self.threshold = self.threshold_spinbox.value()
+    def _trigger_show_inactive_plots(self):
+        self.show_inactive_plots = self.show_inactive_plots_cbox.isChecked()
+        self.sig_show_inactive_plots.emit(self.show_inactive_plots)
 
-    # def _update_smoothness(self):
-    #     self.smoothness = self.smoothness_spinbox.value()
+    def _trigger_set_inactive_plot_opacity(self):
+        self.inactive_plot_opacity = self.inactive_plot_opacity_spinbox.value()
+        self.sig_set_inactive_plot_opacity.emit(self.inactive_plot_opacity)

@@ -7,7 +7,6 @@ dependencies:
   - numpy
   - opencv
   - pip
-  - pyinstaller
   - pyqtgraph
   - pyside6
   - python-decouple

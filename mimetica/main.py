@@ -153,7 +153,7 @@ class MainWindow(QMainWindow):
 def run():
 
     # Set the multiprocessing context
-    mp.set_start_method("forkserver")
+    mp.set_start_method("spawn")
 
     # The main feature
     app = QApplication([])

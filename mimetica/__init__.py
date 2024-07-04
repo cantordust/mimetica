@@ -1,12 +1,4 @@
-import sys
-
-# --------------------------------------
-from loguru import logger
-
-logger.remove()
-logger.add(sys.stdout, format="PID {process} | {message}")
-# --------------------------------------
-
+from mimetica.version import version
 from mimetica.scan.layer import Layer
 from mimetica.scan.stack import Stack
 from mimetica.display.dock import Dock
@@ -16,10 +8,6 @@ from mimetica.display.canvas import Canvas
 from mimetica.display.plot import Plot
 from mimetica.display.splitview import SplitView
 from mimetica.display.tab import Tab
-
-# --------------------------------------
-import pyqtgraph
-# pyqtgraph.setConfigOption('imageAxisOrder', 'row-major')
 
 __all__ = [
     "Thumbnail",
@@ -33,4 +21,6 @@ __all__ = [
     "Stack",
     "logger",
     "utils",
+    "conf",
+    "version"
 ]

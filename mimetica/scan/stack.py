@@ -1,4 +1,4 @@
-from typing import *
+import typing as tp
 
 # --------------------------------------
 from pathlib import Path
@@ -20,7 +20,7 @@ from PySide6.QtCore import QObject
 # --------------------------------------
 from mimetica import Layer
 from mimetica import utils
-from mimetica import logger
+from mimetica.conf import logger
 
 
 class Stack(QObject):
@@ -30,7 +30,7 @@ class Stack(QObject):
 
     @staticmethod
     def make_layer(
-        args: Dict,
+        args: tp.Dict,
     ):
         layer = Layer(
             args["path"],
@@ -40,7 +40,13 @@ class Stack(QObject):
 
         return layer
 
-    def __init__(self, paths: List[Path], threshold: int = 70, *args, **kwargs):
+    def __init__(
+        self,
+        paths: tp.List[Path],
+        threshold: int = 70,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
 
         # Save the parameters
@@ -58,7 +64,7 @@ class Stack(QObject):
 
         # Create a merged stack
         # ==================================================
-        self.merged = None
+        self.merged: np.ndarray = None
 
     def _update_current_layer(
         self,
@@ -73,12 +79,6 @@ class Stack(QObject):
         y: int,
     ):
         self.centre = np.array([x, y], dtype=np.int32)
-
-    def _update_threshold(
-        self,
-        threshold: int,
-    ):
-        pass
 
     def _compute_mbc(self):
         self.mbc = utils.compute_mbc(self.merged).simplify(1, preserve_topology=True)
@@ -104,16 +104,10 @@ class Stack(QObject):
 
         # Calibrate the stack based on all the images
         # ==================================================
-        images = []
         for layer in self.layers:
 
-            # print(f"==[ img_path: {img_path}")
-
-            minval = layer.image.min()
-            maxval = layer.image.max()
-
             if self.merged is None:
-                self.merged = layer.image.copy().astype(np.uint32)
+                self.merged = layer.image.copy().astype(np.float32)
             else:
                 self.merged += layer.image
 
@@ -121,9 +115,7 @@ class Stack(QObject):
         # ==================================================
         minval = self.merged.min()
         maxval = self.merged.max()
-        self.merged = (255 * (self.merged - minval) / (maxval - minval)).astype(
-            np.ubyte
-        )
+        self.merged = (255 * (self.merged - minval) / (maxval - minval)).astype(np.uint8)
 
         # Compute the minimal bounding circle
         # ==================================================

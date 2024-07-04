@@ -1,4 +1,4 @@
-from typing import *
+import typing as tp
 
 # --------------------------------------
 import pyqtgraph as pg
@@ -7,7 +7,7 @@ import pyqtgraph as pg
 class Target(pg.TargetItem):
     def __init__(
         self,
-        pos: Tuple,
+        pos: tp.Tuple,
         *args,
         **kwargs,
     ):

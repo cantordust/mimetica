@@ -1,4 +1,4 @@
-from typing import *
+import typing as tp
 
 # --------------------------------------
 from PySide6.QtCore import Qt
@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QProgressBar
 from pathlib import Path
 
 # --------------------------------------
-from mimetica import logger
+from mimetica.conf import conf
 from mimetica import Canvas
 from mimetica import Dock
 from mimetica import SplitView
@@ -30,7 +30,7 @@ class Tab(QMainWindow):
 
     def __init__(
         self,
-        paths: List[Path],
+        paths: tp.List[Path],
     ):
         QMainWindow.__init__(self)
 
@@ -65,7 +65,7 @@ class Tab(QMainWindow):
         # The layer stack
         # ==================================================
         # logger.info(f'Loading stack | TID: {threading.get_ident()}')
-        self.stack = Stack(paths, self.dock.show_inactive_plots)
+        self.stack = Stack(paths, conf.show_inactive_plots)
         self.load_stack.connect(self.stack.process)
         self.stack.set_canvas.connect(self.set_canvas)
         self.stack.abort.connect(self._abort)
@@ -85,9 +85,19 @@ class Tab(QMainWindow):
         # ==================================================
         self.stack.update_progress.connect(self._update_progress_bar)
         self.dock.sig_show_inactive_plots.connect(self.splitview._show_inactive_plots)
-        self.dock.sig_set_inactive_plot_opacity.connect(
-            self.splitview._set_inactive_plot_opacity
+        self.dock.sig_set_active_plot_colour.connect(
+            self.splitview._set_active_plot_colour
         )
+        self.dock.sig_set_inactive_plot_colour.connect(
+            self.splitview._set_inactive_plot_colour
+        )
+        self.dock.sig_set_stack_contour_colour.connect(
+            self.canvas._set_stack_contour_colour
+        )
+        self.dock.sig_set_slice_contour_colour.connect(
+            self.canvas._set_slice_contour_colour
+        )
+        self.dock.sig_show_stack.connect(self.canvas._set_show_stack)
 
         # Load the tab
         # ==================================================

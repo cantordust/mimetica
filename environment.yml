@@ -5,14 +5,14 @@ channels:
 dependencies:
   - python=3.11
   - loguru
-  - matplotlib
   - numpy
+  - matplotlib
   - opencv
   - pip
   - pyqtgraph
   - pyside6
-  - python-decouple
   - scikit-image[optional]
   - shapely
   - pip:
+      - semver
       - -e .

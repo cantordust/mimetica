@@ -1,4 +1,4 @@
-from typing import *
+import typing as tp
 
 # --------------------------------------
 from PySide6 import QtGui
@@ -85,7 +85,7 @@ class RadialLine(pg.ROI):
 
     def set_end(
         self,
-        pos: Tuple[float, float],
+        pos: tp.Tuple[float, float],
     ):
         self.endpoints[-1] = pg.Point(pos)
 

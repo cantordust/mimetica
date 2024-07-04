@@ -1,4 +1,4 @@
-from typing import *
+import typing as tp
 
 # --------------------------------------
 import numpy as np
@@ -9,10 +9,13 @@ from PySide6.QtCore import Slot
 
 from PySide6.QtWidgets import QSplitter
 
+from PySide6.QtGui import QColor
+
 # --------------------------------------
 import pyqtgraph as pg
 
 # --------------------------------------
+from mimetica.conf import conf
 from mimetica import Canvas
 from mimetica import Plot
 from mimetica import Layer
@@ -33,9 +36,6 @@ class SplitView(QSplitter):
         self.right_panel = QSplitter(self)
         self.right_panel.setOrientation(Qt.Orientation.Vertical)
         self.addWidget(self.right_panel)
-
-        # Switch to show or hide inactive plots
-        self.show_inactive_plots = True
 
         # Radial profile plot
         # ==================================================
@@ -81,16 +81,18 @@ class SplitView(QSplitter):
 
         # Pens
         # ==================================================
-        self.highlight_pen_colour = [51, 255, 51, 255]
-        self.highlight_pen_width = 1.0
-        self.highlight_pen = None
-        self.muted_pen_colour = [147, 147, 147, 17]
-        self.muted_pen_width = 0.5
-        self.muted_pen = None
-        self.invisible_pen_colour = [0, 0, 0, 0]
-        self.invisible_pen_width = 0
-        self.invisible_pen = None
-        self._update_pens()
+        self.active_pen_width = 1.0  # TODO: Migrate to conf
+        self.active_pen = pg.mkPen(
+            color=conf.active_plot_colour,
+            width=self.active_pen_width,
+        )
+
+        self.inactive_pen_width = 0.5  # TODO: Migrate to conf
+        self.inactive_pen = pg.mkPen(
+            color=conf.inactive_plot_colour,
+            width=self.inactive_pen_width,
+        )
+        self.invisible_pen = pg.mkPen(color=QColor(0, 0, 0, 0), width=0)
 
         # Current layer index & reference
         # ==================================================
@@ -106,21 +108,10 @@ class SplitView(QSplitter):
         )
         self.canvas.highlight_plot.connect(lambda layer: self._highlight_plot(layer))
 
-    def _update_pens(self):
-        self.highlight_pen = pg.mkPen(
-            color=self.highlight_pen_colour, width=self.highlight_pen_width
-        )
-        self.muted_pen = pg.mkPen(
-            color=self.muted_pen_colour, width=self.muted_pen_width
-        )
-        self.invisible_pen = pg.mkPen(
-            color=self.invisible_pen_colour, width=self.invisible_pen_width
-        )
-
     @Slot(list, int)
     def plot(
         self,
-        layers: List[Layer],
+        layers: tp.List[Layer],
         current_layer_idx: int,
     ):
         self.radial_plots.clear()
@@ -139,13 +130,13 @@ class SplitView(QSplitter):
         # ==================================================
         for idx, layer in enumerate(layers):
             if idx == current_layer_idx:
-                pen = self.highlight_pen
+                pen = self.active_pen
                 self.current_layer_idx = idx
                 self.current_layer = layer
                 self.phase_graph.setXRange(0.0, layer.phase_range.max())
             else:
-                if self.show_inactive_plots:
-                    pen = self.muted_pen
+                if conf.show_inactive_plots:
+                    pen = self.inactive_pen
                 else:
                     pen = self.invisible_pen
 
@@ -210,18 +201,14 @@ class SplitView(QSplitter):
         self.phase_arrow.setIndex(index)
         self.phase_lbl.setText(f"{x.item():3.3f}|{y:0.3f}")
 
-    @Slot(bool)
-    def _show_inactive_plots(
-        self,
-        show: bool,
-    ):
+    @Slot()
+    def _show_inactive_plots(self):
 
-        self.show_inactive_plots = show
         for idx in self.radial_plots:
             if idx != self.current_layer_idx:
-                if self.show_inactive_plots:
-                    self.radial_plots[idx].setPen(self.muted_pen)
-                    self.phase_plots[idx].setPen(self.muted_pen)
+                if conf.show_inactive_plots:
+                    self.radial_plots[idx].setPen(self.inactive_pen)
+                    self.phase_plots[idx].setPen(self.inactive_pen)
                     self.radial_plots[idx].update()
                     self.phase_plots[idx].update()
                 else:
@@ -230,21 +217,33 @@ class SplitView(QSplitter):
                     self.radial_plots[idx].update()
                     self.phase_plots[idx].update()
 
-    @Slot(int)
-    def _set_inactive_plot_opacity(
-        self,
-        opacity: int,
-    ):
+    @Slot()
+    def _set_inactive_plot_colour(self):
 
-        self.muted_pen_colour[-1] = opacity
-        self._update_pens()
-        if self.show_inactive_plots:
+        self.inactive_pen = pg.mkPen(
+            color=conf.inactive_plot_colour,
+            width=self.inactive_pen_width,
+        )
+        if conf.show_inactive_plots:
             for idx in self.radial_plots:
                 if idx != self.current_layer_idx:
-                    self.radial_plots[idx].setPen(self.muted_pen)
-                    self.phase_plots[idx].setPen(self.muted_pen)
+                    self.radial_plots[idx].setPen(self.inactive_pen)
                     self.radial_plots[idx].update()
+                    self.phase_plots[idx].setPen(self.inactive_pen)
                     self.phase_plots[idx].update()
+
+    @Slot()
+    def _set_active_plot_colour(self):
+
+        self.active_pen = pg.mkPen(
+            color=conf.active_plot_colour,
+            width=self.active_pen_width,
+        )
+        idx = self.current_layer_idx
+        self.radial_plots[idx].setPen(self.active_pen)
+        self.radial_plots[idx].update()
+        self.phase_plots[idx].setPen(self.active_pen)
+        self.phase_plots[idx].update()
 
     @Slot(int)
     def _highlight_plot(
@@ -252,12 +251,14 @@ class SplitView(QSplitter):
         layer_idx: int,
     ):
 
-        self.radial_plots[self.current_layer_idx].setPen(self.muted_pen)
-        self.radial_plots[layer_idx].setPen(self.highlight_pen)
+        self.radial_plots[self.current_layer_idx].setPen(self.inactive_pen)
+        self.radial_plots[layer_idx].setPen(self.active_pen)
         self.radial_plots[layer_idx].update()
+        self.radial_graph.getPlotItem().enableAutoRange()
 
-        self.phase_plots[self.current_layer_idx].setPen(self.muted_pen)
-        self.phase_plots[layer_idx].setPen(self.highlight_pen)
+        self.phase_plots[self.current_layer_idx].setPen(self.inactive_pen)
+        self.phase_plots[layer_idx].setPen(self.active_pen)
         self.phase_plots[layer_idx].update()
+        self.phase_graph.getPlotItem().enableAutoRange()
 
         self.current_layer_idx = layer_idx

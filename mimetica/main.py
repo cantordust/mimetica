@@ -1,4 +1,4 @@
-from typing import *
+import typing as tp
 
 # --------------------------------------
 import sys
@@ -103,10 +103,11 @@ class MainWindow(QMainWindow):
                 self,
                 "Open stack...",
             )
-            stack = Path(stack)
 
         if stack == "":
             return
+
+        stack = Path(stack).resolve().absolute()
 
         paths = []
         if isinstance(stack, list):
@@ -142,7 +143,7 @@ class MainWindow(QMainWindow):
 
     def _add_tab(
         self,
-        paths: List[Path],
+        paths: tp.List[Path],
     ):
         tab = Tab(paths)
         name = paths[0].parent.name
@@ -153,12 +154,16 @@ class MainWindow(QMainWindow):
 def run():
 
     # Set the multiprocessing context
-    mp.set_start_method("spawn")
+    if 'forkserver' in mp.get_all_start_methods():
+        mp.set_start_method("forkserver")
+    else:
+        mp.set_start_method("spawn")
 
     # The main feature
     app = QApplication([])
     mw = MainWindow()
-    # mw.resize(1200, 800)
+
     mw.showMaximized()
     mw.show()
+
     sys.exit(app.exec())

@@ -1,4 +1,4 @@
-from typing import *
+import typing as tp
 
 # --------------------------------------
 from pathlib import Path
@@ -76,7 +76,6 @@ class Layer:
         self.radial_profile = np.zeros((self.radius - 1,))
         self.radial_range = np.linspace(0, 1, len(self.radial_profile))
 
-        # print(f"==[ Processing {self.path}")
 
         for idx, radius in enumerate(range(1, self.radius)):
             # Create a virtual circle with the right radius

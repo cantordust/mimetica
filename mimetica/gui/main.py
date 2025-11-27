@@ -1,36 +1,33 @@
-import typing as tp
-
-# --------------------------------------
 import sys
-
-# --------------------------------------
-from PySide6.QtGui import QAction
-from PySide6.QtGui import QKeySequence
-from PySide6.QtCore import Slot
 
 from PySide6.QtWidgets import QMainWindow
 from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWidgets import QTabWidget
 
-# --------------------------------------
+from PySide6.QtGui import QAction
+from PySide6.QtGui import QKeySequence
+from PySide6.QtCore import Slot
+
 import multiprocessing as mp
 
-# --------------------------------------
 from pathlib import Path
 
-# --------------------------------------
 from mimetica import Tab
+from mimetica import conf
+from mimetica import logger
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
-        QMainWindow.__init__(self)
+    def __init__(self, *args, **kwargs):
+
+        super().__init__()
+
         self.setWindowTitle("Mimetica")
 
         # Tab widget
         # ==================================================
-        self.tabs = QTabWidget()
+        self.tabs = QTabWidget(self)
         self.setup_tabs()
         self.setCentralWidget(self.tabs)
 
@@ -96,39 +93,42 @@ class MainWindow(QMainWindow):
 
     def open_stack(
         self,
-        stack: Path = None,
+        path: Path | None = None,
     ):
-        if not stack:
-            stack = QFileDialog.getExistingDirectory(
-                self,
-                "Open stack...",
-            )
+        if not path:
+            path = QFileDialog.getExistingDirectory(self, "Open stack...")
 
-        if stack == "":
+        if path == "":
             return
 
-        stack = Path(stack).resolve().absolute()
+        elif isinstance(path, (str, Path)):
+            path = Path(path)
+            if path.is_file():
+                paths = [path]
 
-        paths = []
-        if isinstance(stack, list):
-            paths = [Path(p) for p in stack]
+            else:
+                paths = []
+                extensions = {
+                    ".bmp",
+                    ".tif",
+                    ".tiff",
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                }
 
-        elif isinstance(stack, Path):
-            extensions = (
-                ".bmp",
-                ".tif",
-                ".tiff",
-                ".png",
-                ".jpg",
-                ".jpeg",
-            )
+                for file in path.iterdir():
+                    if str(file).startswith("."):
+                        continue
 
-            for file in stack.iterdir():
-                if str(file).startswith("."):
-                    continue
+                    if file.suffix.lower() in extensions:
+                        paths.append(file.resolve().absolute())
 
-                if file.suffix.lower() in extensions:
-                    paths.append(file.resolve().absolute())
+        elif isinstance(path, list):
+            paths = [Path(p) for p in path]
+
+        else:
+            raise TypeError(f"Invalid path type: {type(path)}")
 
         if len(paths) != 0:
             self._add_tab(paths)
@@ -143,7 +143,7 @@ class MainWindow(QMainWindow):
 
     def _add_tab(
         self,
-        paths: tp.List[Path],
+        paths: list[Path],
     ):
         tab = Tab(paths)
         name = paths[0].parent.name
@@ -154,13 +154,14 @@ class MainWindow(QMainWindow):
 def run():
 
     # Set the multiprocessing context
-    if 'forkserver' in mp.get_all_start_methods():
+    try:
         mp.set_start_method("forkserver")
-    else:
+    except ValueError as e:
+        logger.warn(f"Failed to set MP start method to 'forkserver':\n{e}")
         mp.set_start_method("spawn")
 
     # The main feature
-    app = QApplication([])
+    app = QApplication(sys.argv)
     mw = MainWindow()
 
     mw.showMaximized()

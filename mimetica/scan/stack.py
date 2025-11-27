@@ -1,26 +1,18 @@
-import typing as tp
-
-# --------------------------------------
 from pathlib import Path
 
-# --------------------------------------
 import numpy as np
 
-# --------------------------------------
 import shapely as shp
 
-# --------------------------------------
 from concurrent.futures import ProcessPoolExecutor
 
-# --------------------------------------
 from PySide6.QtCore import Slot
 from PySide6.QtCore import Signal
 from PySide6.QtCore import QObject
 
-# --------------------------------------
 from mimetica import Layer
 from mimetica import utils
-from mimetica.conf import logger
+from mimetica import logger
 
 
 class Stack(QObject):
@@ -30,7 +22,7 @@ class Stack(QObject):
 
     @staticmethod
     def make_layer(
-        args: tp.Dict,
+        args: dict,
     ):
         layer = Layer(
             args["path"],
@@ -42,7 +34,7 @@ class Stack(QObject):
 
     def __init__(
         self,
-        paths: tp.List[Path],
+        paths: list[Path],
         threshold: int = 70,
         *args,
         **kwargs,
@@ -80,10 +72,11 @@ class Stack(QObject):
     ):
         self.centre = np.array([x, y], dtype=np.int32)
 
-    def _compute_mbc(self):
-        self.mbc = utils.compute_mbc(self.merged).simplify(1, preserve_topology=True)
+    def _compute_minimal_bounding_circle(self):
+        self.mbc = utils.compute_minimal_bounding_circle(self.merged)
         self.centre = np.array(
-            list(reversed(shp.centroid(self.mbc).coords)), dtype=np.int32
+            list(reversed(shp.centroid(self.mbc).coords)),
+            dtype=np.int32,
         )[0]
         self.radius = int(shp.minimum_bounding_radius(self.mbc))
 
@@ -115,11 +108,13 @@ class Stack(QObject):
         # ==================================================
         minval = self.merged.min()
         maxval = self.merged.max()
-        self.merged = (255 * (self.merged - minval) / (maxval - minval)).astype(np.uint8)
+        self.merged = (255 * (self.merged - minval) / (maxval - minval)).astype(
+            np.uint8
+        )
 
         # Compute the minimal bounding circle
         # ==================================================
-        self._compute_mbc()
+        self._compute_minimal_bounding_circle()
 
         # Set the stack on the canvas
         # ==================================================

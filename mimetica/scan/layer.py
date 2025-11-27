@@ -1,22 +1,15 @@
-import typing as tp
-
-# --------------------------------------
 from pathlib import Path
 
-# --------------------------------------
 from PySide6.QtCore import Slot
 
-# --------------------------------------
 import skimage as ski
 import skimage.draw as skd
 
-# --------------------------------------
 import shapely as shp
 
-# --------------------------------------
 import numpy as np
 
-# --------------------------------------
+from mimetica import conf
 from mimetica import utils
 
 
@@ -32,8 +25,8 @@ class Layer:
 
         # Pad the image to accommodate for the contour
         # ==================================================
-        hpad = int(0.2 * image.shape[0])
-        wpad = int(0.2 * image.shape[1])
+        hpad = 1
+        wpad = 1
 
         lpad, rpad = wpad, wpad
         tpad, bpad = hpad, hpad
@@ -45,10 +38,10 @@ class Layer:
             constant_values=0,
         )
 
-        # Various properties of the image
+        # Image properties
         # ==================================================
         # Minimal bounding circle
-        self.mbc = utils.compute_mbc(self.image)
+        self.mbc = utils.compute_minimal_bounding_circle(self.image)
         self.centre = np.array(list(shp.centroid(self.mbc).coords), dtype=np.int32)[0]
         self.radius = int(shp.minimum_bounding_radius(self.mbc))
         self.radial_range = np.empty([])
@@ -73,13 +66,14 @@ class Layer:
     @Slot()
     def compute_radial_profile(self):
         # Create an empty array
-        self.radial_profile = np.zeros((self.radius - 1,))
+        print(f"==[ Recomputing radial profile with {conf.radial_segments} segments")
+        self.radial_profile = np.zeros((conf.radial_segments,))
         self.radial_range = np.linspace(0, 1, len(self.radial_profile))
+        self.radii = np.linspace(1.0, self.radius, conf.radial_segments)
 
-
-        for idx, radius in enumerate(range(1, self.radius)):
+        for idx, radius in enumerate(self.radii):
             # Create a virtual circle with the right radius
-            rr, cc = skd.circle_perimeter(self.centre[0], self.centre[1], radius)
+            rr, cc = skd.circle_perimeter(self.centre[0], self.centre[1], int(radius))
             # Get the segment of the image covered by that circle
             circle = self.image[rr, cc]
             # Find out how much material there is in that segment
@@ -117,7 +111,7 @@ class Layer:
         end_ys = (self.radius * np.sin(angles) + cy).astype(np.int32)
 
         # for idx, (end_x, end_y) in enumerate(zip(cont_ys, cont_xs)):
-        for idx, (theta, end_x, end_y) in enumerate(zip(angles, end_xs, end_ys)):
+        for idx, (_, end_x, end_y) in enumerate(zip(angles, end_xs, end_ys)):
 
             # Create a virtual line from the centre to the contour
             rr, cc = np.array(skd.line(cx, cy, end_x, end_y))

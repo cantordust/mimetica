@@ -1,26 +1,11 @@
-from mimetica.version import version
+from mimetica.utils.config import conf
+from mimetica.utils.logger import logger
+from mimetica.gui.display.dock import Dock
+from mimetica.gui.display.plot import Plot
 from mimetica.scan.layer import Layer
+from mimetica.gui.display.thumbnail import Thumbnail
 from mimetica.scan.stack import Stack
-from mimetica.display.dock import Dock
-from mimetica.display.thumbnail import Thumbnail
-from mimetica.display.image import ImageView
-from mimetica.display.canvas import Canvas
-from mimetica.display.plot import Plot
-from mimetica.display.splitview import SplitView
-from mimetica.display.tab import Tab
-
-__all__ = [
-    "Thumbnail",
-    "Canvas",
-    "ImageView",
-    "Dock",
-    "Tab",
-    "Plot",
-    "SplitView",
-    "Layer",
-    "Stack",
-    "logger",
-    "utils",
-    "conf",
-    "version"
-]
+from mimetica.gui.display.image import ImageView
+from mimetica.gui.display.canvas import Canvas
+from mimetica.gui.display.splitview import SplitView
+from mimetica.gui.display.tab import Tab

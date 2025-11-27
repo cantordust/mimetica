@@ -1,36 +1,20 @@
-import typing as tp
-
-# --------------------------------------
 from dataclasses import dataclass
 
-# --------------------------------------
-import sys
 
-# --------------------------------------
-from loguru import logger
-
-# --------------------------------------
 from datetime import datetime
 
-# --------------------------------------
+
 from PySide6.QtCore import QSettings
-
 from PySide6.QtGui import QColor
+# import sys
+# from omegaconf import OmegaConf
+# from platformdirs import PlatformDirs
 
-# --------------------------------------
-from mimetica.version import version
-
-logger.remove()
-logger.add(sys.stdout, format="PID {process} | {message}")
-
-
-settings = QSettings("Hobbes", "Mimetica")
-settings.setValue("copyright", f"{datetime.now().year} Alexander Hadjiivanov")
-settings.setValue("version", f"{version}")
+# from pyqtgraph.parametertree import ParameterTree
 
 
 @dataclass
-class Conf:
+class Conf(QSettings):
     WindowGeometry: str = "window/geometry"
     WindowPosition: str = "window/position"
     InactivePlotColour: str = "plots/inactive/colour"
@@ -40,30 +24,37 @@ class Conf:
     ActiveSliceColour: str = "slice/active/colour"
     StackContourColour: str = "stack/contour/colour"
     SliceContourColour: str = "slice/contour/colour"
-    ShowStack: str = "stack/show"
+    ShowStack: bool = "stack/show"
+    RadialSegments: int = "slice/contour/radial_segments"
+    PhaseSegments: int = "slice/contour/phase_segments"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__("Hobbes Research", "Mimetica", *args, **kwargs)
+        self.setValue(
+            "Copyright", f"{datetime.now().year} Alexander Hadjiivanov"
+        )
+        # self.ptree = ParameterTree(showHeader=True)
 
     @property
     def window_geometry(self):
         pass
 
     # Show inactive plots
-    # ==================================================
     @property
     def show_inactive_plots(self) -> bool:
-        return settings.value(Conf.ShowInactivePlots, True, bool)
+        return self.value(Conf.ShowInactivePlots, True, bool)
 
     @show_inactive_plots.setter
     def show_inactive_plots(
         self,
         value: QColor,
     ):
-        settings.setValue(Conf.ShowInactivePlots, value)
+        self.setValue(Conf.ShowInactivePlots, value)
 
     # Inactive plot colour
-    # ==================================================
     @property
     def inactive_plot_colour(self) -> QColor:
-        return settings.value(
+        return self.value(
             Conf.InactivePlotColour,
             QColor(147, 147, 147, 100),
             QColor,
@@ -74,13 +65,12 @@ class Conf:
         self,
         value: QColor,
     ):
-        settings.setValue(Conf.InactivePlotColour, value)
+        self.setValue(Conf.InactivePlotColour, value)
 
     # Active plot colour
-    # ==================================================
     @property
     def active_plot_colour(self) -> QColor:
-        return settings.value(
+        return self.value(
             Conf.ActivePlotColour,
             QColor(51, 255, 51, 255),
             QColor,
@@ -91,13 +81,12 @@ class Conf:
         self,
         value: QColor,
     ):
-        settings.setValue(Conf.ActivePlotColour, value)
+        self.setValue(Conf.ActivePlotColour, value)
 
     # Slice contour colour
-    # ==================================================
     @property
     def slice_contour_colour(self) -> QColor:
-        return settings.value(
+        return self.value(
             Conf.SliceContourColour,
             QColor(255, 255, 0, 255),
             QColor,
@@ -108,13 +97,12 @@ class Conf:
         self,
         value: QColor,
     ):
-        settings.setValue(Conf.SliceContourColour, value)
+        self.setValue(Conf.SliceContourColour, value)
 
     # Stack contour colour
-    # ==================================================
     @property
     def stack_contour_colour(self) -> QColor:
-        return settings.value(
+        return self.value(
             Conf.StackContourColour,
             QColor(255, 0, 0, 255),
             QColor,
@@ -125,20 +113,43 @@ class Conf:
         self,
         value: QColor,
     ):
-        settings.setValue(Conf.StackContourColour, value)
+        self.setValue(Conf.StackContourColour, value)
 
     # Show stack
-    # ==================================================
     @property
     def show_stack(self) -> bool:
-        return settings.value(Conf.ShowStack, True, bool)
+        return self.value(Conf.ShowStack, True, bool)
 
     @show_stack.setter
     def show_stack(
         self,
-        value: QColor,
+        value: bool,
     ):
-        settings.setValue(Conf.ShowStack, value)
+        self.setValue(Conf.ShowStack, value)
+
+    # Radial segments
+    @property
+    def radial_segments(self) -> int:
+        return self.value(Conf.RadialSegments, 256, int)
+
+    @radial_segments.setter
+    def radial_segments(
+        self,
+        value: int,
+    ):
+        self.setValue(Conf.RadialSegments, value)
+
+    # Phase segments
+    @property
+    def phase_segments(self) -> int:
+        return self.value(Conf.PhaseSegments, 360, int)
+
+    @phase_segments.setter
+    def phase_segments(
+        self,
+        value: int,
+    ):
+        self.setValue(Conf.PhaseSegments, value)
 
 
 conf = Conf()

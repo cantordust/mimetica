@@ -1,19 +1,12 @@
-import typing as tp
-
-# --------------------------------------
 import cv2 as cv
 
-# --------------------------------------
 import skimage.morphology as skmorph
 
-# --------------------------------------
 import shapely as shp
 from shapely.geometry import Polygon
 
-# --------------------------------------
 import numpy as np
 
-# --------------------------------------
 from PySide6.QtGui import QColor
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QColorDialog
@@ -44,11 +37,11 @@ def smoothen(
     )
 
 
-def compute_mbc(image: np.ndarray):
+def compute_minimal_bounding_circle(image: np.ndarray):
 
     return shp.minimum_bounding_circle(
         make_contour(skmorph.convex_hull_image(image).astype(np.ubyte))
-    )
+    ).simplify(1, preserve_topology=True)
 
 
 def as_rgba(colour: QColor) -> str:
@@ -60,12 +53,11 @@ def as_rgba(colour: QColor) -> str:
     is between 0 and 1.
 
     Args:
-        colour (QColor):
+        colour:
             A QColor instance.
 
     Returns:
-        str:
-            RGBA-formatted string.
+        RGBA-formatted string.
     """
     return ",".join(
         str(c)
@@ -83,12 +75,11 @@ def as_hex(colour: QColor) -> str:
     Convert a QColor isntance (including opacity) into hex format.
 
     Args:
-        colour (QColor):
+        colour:
             A QColor instance.
 
     Returns:
-        str:
-            The hex representation.
+        The hex representation.
     """
     return "#" + "".join(
         [
@@ -109,8 +100,7 @@ def get_colour(
     Get a QColor from a QColorDialog.
 
     Returns:
-        QColor:
-            The selected colour.
+        The selected colour.
     """
 
     return QColorDialog.getColor(

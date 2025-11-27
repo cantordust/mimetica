@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mimetica"]
+
+[project]
+authors = [
+    { name = "Alexander Hadjiivanov", email = "43831101+cantordust@users.noreply.github.com" },
+]
+dependencies = [
+    "loguru",
+    "numpy",
+    "matplotlib",
+    "opencv-python",
+    "omegaconf",
+    "platformdirs",
+    "PySide6",
+    "pyqtgraph",
+    "scikit-image[optional]",
+    "shapely",
+    "rich",
+]
+name = "mimetica"
+requires-python = ">= 3.11"
+version = "0.2.2"
+license = "MIT"
+
+[project.scripts]
+mimetica = "mimetica.gui.main:run"

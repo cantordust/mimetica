@@ -66,7 +66,6 @@ class Layer:
     @Slot()
     def compute_radial_profile(self):
         # Create an empty array
-        print(f"==[ Recomputing radial profile with {conf.radial_segments} segments")
         self.radial_profile = np.zeros((conf.radial_segments,))
         self.radial_range = np.linspace(0, 1, len(self.radial_profile))
         self.radii = np.linspace(1.0, self.radius, conf.radial_segments)

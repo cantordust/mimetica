@@ -13,9 +13,9 @@ import multiprocessing as mp
 
 from pathlib import Path
 
-from mimetica import Tab
 from mimetica import conf
 from mimetica import logger
+from mimetica import Tab
 
 
 class MainWindow(QMainWindow):

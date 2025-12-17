@@ -4,11 +4,12 @@ from PySide6.QtWidgets import QMainWindow
 from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWidgets import QTabWidget
-
 from PySide6.QtGui import QAction
 from PySide6.QtGui import QKeySequence
 from PySide6.QtCore import Slot
 
+import cloup
+import platform
 import multiprocessing as mp
 
 from pathlib import Path
@@ -151,14 +152,38 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentIndex(idx)
 
 
-def run():
+@cloup.command()
+@cloup.option_group(
+    "Input",
+    "Open one or more images.",
+    cloup.option(
+        "-i",
+        "--image",
+        type=str,
+        default=None,
+        help="Open a single image.",
+    ),
+    cloup.option(
+        "-s",
+        "--stack",
+        type=str,
+        default=None,
+        help="Open a stack (directory of images).",
+    ),
+    constraint=cloup.constraints.mutually_exclusive
+)
+def run(
+    image: str | None,
+    stack: str | None,
+):
 
     # Set the multiprocessing context
-    try:
-        mp.set_start_method("forkserver")
-    except ValueError as e:
-        logger.warn(f"Failed to set MP start method to 'forkserver':\n{e}")
+    plt = platform.system()
+    logger.warning(f"Running on {plt}")
+    if plt.lower() == "windows":
         mp.set_start_method("spawn")
+    else:
+        mp.set_start_method("forkserver")
 
     # The main feature
     app = QApplication(sys.argv)
@@ -166,5 +191,10 @@ def run():
 
     mw.showMaximized()
     mw.show()
+
+    if image is not None:
+        mw.open_file(image)
+    elif stack is not None:
+        mw.open_stack(stack)
 
     sys.exit(app.exec())

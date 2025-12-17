@@ -22,15 +22,18 @@ class Stack(QObject):
 
     @staticmethod
     def make_layer(
-        args: dict,
+        path: str | Path,
     ):
-        layer = Layer(
-            args["path"],
-        )
+        """
+        Create a layer for the given image.
 
-        # logger.info(f"Processed {layer.path} | TID: {os.getpid()}")
+        Args:
+            path: Path to the image file.
 
-        return layer
+        Returns:
+            A layer instance.
+        """
+        return Layer(path)
 
     def __init__(
         self,
@@ -39,6 +42,13 @@ class Stack(QObject):
         *args,
         **kwargs,
     ):
+        """
+        Create a stack of images.
+
+        Args:
+            paths: A list of image paths.
+            threshold: Binarisation threshold (only for RGB or greyscale images; currently unused)
+        """
         super().__init__(*args, **kwargs)
 
         # Save the parameters
@@ -48,52 +58,72 @@ class Stack(QObject):
 
         # Other attributes
         # ==================================================
-        self.mbc = None
-        self.centre = None
-        self.radius = None
         self.layers = []
-        self.current_layer = 0
+        self.active_layer = 0
 
         # Create a merged stack
         # ==================================================
         self.merged: np.ndarray = None
 
-    def _update_current_layer(
+    def _set_active_layer(
         self,
-        layer: int = 0,
+        index: int = 0,
     ):
-        self.current_layer = layer
+        """
+        Set the layer to the given index.
 
-    @Slot(int, int)
-    def _set_centre(
+        Args:
+            index: Layer index.
+        """
+        self.active_layer = index
+
+    @Slot(int)
+    def _slot_compute_radial_profile(
         self,
-        x: int,
-        y: int,
+        segments: int,
     ):
-        self.centre = np.array([x, y], dtype=np.int32)
+        '''
+        Update the radial profile with a new number of segments.
 
-    def _compute_minimal_bounding_circle(self):
-        self.mbc = utils.compute_minimal_bounding_circle(self.merged)
-        self.centre = np.array(
-            list(reversed(shp.centroid(self.mbc).coords)),
-            dtype=np.int32,
-        )[0]
-        self.radius = int(shp.minimum_bounding_radius(self.mbc))
+        Args:
+            segments: Number of radial segments.
+        '''
+
+        for layer in self.layers:
+            layer.compute_radial_profile()
+        self.plot.emit()
+
+    @Slot(int)
+    def _slot_compute_phase_profile(
+        self,
+        segments: int,
+    ):
+        '''
+        Update the phase profile with a new number of segments.
+
+        Args:
+            segments: Number of phase segments.
+        '''
+        for layer in self.layers:
+            layer.compute_phase_profile()
+
+        self.plot.emit()
 
     @Slot()
     def process(self):
+        """
+        Process a stack of images.
+        """
         logger.info(f"Loading stack...")
 
         # Layer factory
         # ==================================================
-        args = [{"path": path} for path in self.paths]
-
         with ProcessPoolExecutor() as executor:
-            for layer in executor.map(Stack.make_layer, args):
+            for layer in executor.map(Stack.make_layer, self.paths):
                 self.layers.append(layer)
                 self.update_progress.emit(layer.path)
 
-        self._update_current_layer()
+        self._set_active_layer()
 
         # Calibrate the stack based on all the images
         # ==================================================
@@ -111,10 +141,6 @@ class Stack(QObject):
         self.merged = (255 * (self.merged - minval) / (maxval - minval)).astype(
             np.uint8
         )
-
-        # Compute the minimal bounding circle
-        # ==================================================
-        self._compute_minimal_bounding_circle()
 
         # Set the stack on the canvas
         # ==================================================

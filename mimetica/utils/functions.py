@@ -1,47 +1,43 @@
-import cv2 as cv
-
-import skimage.morphology as skmorph
-
+import skimage as ski
 import shapely as shp
 from shapely.geometry import Polygon
-
 import numpy as np
-
 from PySide6.QtGui import QColor
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QColorDialog
 
 
-def make_contour(image: np.ndarray):
-    contours, hierarchy = cv.findContours(
-        image, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE
-    )
-    contours = [c[:, 0] for c in contours]
-    return Polygon(contours[0]).simplify(1, preserve_topology=True)
-
-
-def smoothen(
-    contour: Polygon,
-    smoothness: int,
-):
-    return Polygon(
-        contour.buffer(
-            smoothness,
-            join_style=1,
-            single_sided=True,
-        ).buffer(
-            -smoothness,
-            join_style=1,
-            single_sided=True,
-        )
-    )
-
-
 def compute_minimal_bounding_circle(image: np.ndarray):
+    '''
+    Compute the minimal bounding circle (MBC) and radius.
 
-    return shp.minimum_bounding_circle(
-        make_contour(skmorph.convex_hull_image(image).astype(np.ubyte))
-    ).simplify(1, preserve_topology=True)
+    Args:
+        image: The image being analysed.
+
+    Returns:
+        The MBC and its radius.
+    '''
+
+    point_set = np.argwhere(image)
+    points = shp.MultiPoint(point_set)
+
+    mbc = shp.minimum_bounding_circle(points)
+    mbr = shp.minimum_bounding_radius(points)
+    return mbc, mbr
+
+
+def draw_sorted_circle(centre: np.ndarray, radius: np.ndarray):
+    rr, cc = ski.draw.circle_perimeter(
+        *centre.astype(np.uint32),
+        np.floor(radius).astype(np.uint32),
+        method="andres",
+    )
+    rr = np.array(rr, dtype=np.uint32)
+    cc = np.array(cc, dtype=np.uint32)
+    angle = np.argsort(np.arctan2(cc - np.mean(cc), rr - np.mean(rr)))
+    rr = np.take(rr, angle, axis=0)
+    cc = np.take(cc, angle, axis=0)
+    return rr, cc
 
 
 def as_rgba(colour: QColor) -> str:

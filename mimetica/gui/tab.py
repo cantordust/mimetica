@@ -85,15 +85,11 @@ class Tab(QMainWindow):
         self.dock.sig_set_inactive_plot_colour.connect(
             self.splitview._set_inactive_plot_colour
         )
-        self.dock.sig_set_stack_contour_colour.connect(
-            self.canvas._set_stack_contour_colour
-        )
         self.dock.sig_set_slice_contour_colour.connect(
             self.canvas._set_slice_contour_colour
         )
-        self.dock.sig_show_stack.connect(self.canvas._set_show_stack)
-        self.dock.sig_set_radial_segments.connect(self.canvas._slot_compute_radial_profile)
-        self.dock.sig_set_phase_segments.connect(self.canvas._slot_compute_phase_profile)
+        self.dock.sig_set_radial_segments.connect(self.stack._slot_compute_radial_profile)
+        self.dock.sig_set_phase_segments.connect(self.stack._slot_compute_phase_profile)
 
         # Load the tab
         # ==================================================

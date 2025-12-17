@@ -1,8 +1,8 @@
 import pyqtgraph as pg
 
 from mimetica import Layer
-from mimetica.gui.display.roi.line import RadialLine
-from mimetica.gui.display.roi.contour import Contour
+from mimetica.gui.roi.line import RadialLine
+from mimetica.gui.roi.contour import Contour
 
 
 class ImageView(pg.ImageView):

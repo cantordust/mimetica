@@ -1,3 +1,7 @@
-from .functions import make_contour
-from .functions import smoothen
-from .functions import compute_minimal_bounding_circle
+from .functions import (
+    compute_minimal_bounding_circle,
+    draw_sorted_circle,
+    as_rgba,
+    as_hex,
+    get_colour,
+)

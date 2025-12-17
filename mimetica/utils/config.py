@@ -1,17 +1,8 @@
 from dataclasses import dataclass
-
-
 from datetime import datetime
-
-
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QColor
-# import sys
-# from omegaconf import OmegaConf
-# from platformdirs import PlatformDirs
-
-# from pyqtgraph.parametertree import ParameterTree
-
+from omegaconf import OmegaConf
 
 @dataclass
 class Conf(QSettings):
@@ -22,18 +13,14 @@ class Conf(QSettings):
     ActivePlotColour: str = "plots/active/colour"
     InactiveSliceColour: str = "slice/inactive/colour"
     ActiveSliceColour: str = "slice/active/colour"
-    StackContourColour: str = "stack/contour/colour"
     SliceContourColour: str = "slice/contour/colour"
     ShowStack: bool = "stack/show"
-    RadialSegments: int = "slice/contour/radial_segments"
-    PhaseSegments: int = "slice/contour/phase_segments"
+    RadialSamples: int = "analysis/radial_samples"
+    PhaseSamples: int = "analysis/phase_samples"
 
     def __init__(self, *args, **kwargs):
-        super().__init__("Hobbes Research", "Mimetica", *args, **kwargs)
-        self.setValue(
-            "Copyright", f"{datetime.now().year} Alexander Hadjiivanov"
-        )
-        # self.ptree = ParameterTree(showHeader=True)
+        super().__init__("Mimetica", "Mimetica", *args, **kwargs)
+        self.setValue("Copyright", f"{datetime.now().year} Alexander Hadjiivanov")
 
     @property
     def window_geometry(self):
@@ -99,22 +86,6 @@ class Conf(QSettings):
     ):
         self.setValue(Conf.SliceContourColour, value)
 
-    # Stack contour colour
-    @property
-    def stack_contour_colour(self) -> QColor:
-        return self.value(
-            Conf.StackContourColour,
-            QColor(255, 0, 0, 255),
-            QColor,
-        )
-
-    @stack_contour_colour.setter
-    def stack_contour_colour(
-        self,
-        value: QColor,
-    ):
-        self.setValue(Conf.StackContourColour, value)
-
     # Show stack
     @property
     def show_stack(self) -> bool:
@@ -129,27 +100,27 @@ class Conf(QSettings):
 
     # Radial segments
     @property
-    def radial_segments(self) -> int:
-        return self.value(Conf.RadialSegments, 256, int)
+    def radial_samples(self) -> int:
+        return self.value(Conf.RadialSamples, 200, int)
 
-    @radial_segments.setter
-    def radial_segments(
+    @radial_samples.setter
+    def radial_samples(
         self,
         value: int,
     ):
-        self.setValue(Conf.RadialSegments, value)
+        self.setValue(Conf.RadialSamples, value)
 
     # Phase segments
     @property
-    def phase_segments(self) -> int:
-        return self.value(Conf.PhaseSegments, 360, int)
+    def phase_samples(self) -> int:
+        return self.value(Conf.PhaseSamples, 360, int)
 
-    @phase_segments.setter
-    def phase_segments(
+    @phase_samples.setter
+    def phase_samples(
         self,
         value: int,
     ):
-        self.setValue(Conf.PhaseSegments, value)
+        self.setValue(Conf.PhaseSamples, value)
 
 
 conf = Conf()

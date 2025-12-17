@@ -98,10 +98,10 @@ class SplitView(QSplitter):
 
         # Slots and signals
         # ==================================================
-        self.canvas.update_radial_plot.connect(self._update_radial_pos)
-        self.canvas.update_phase_plot.connect(self._update_phase_pos)
+        self.canvas.update_radial_plot.connect(self._update_radial_position)
+        self.canvas.update_phase_plot.connect(self._update_phase_position)
         self.canvas.plot.connect(
-            lambda: self.plot(self.canvas.stack.layers, self.canvas.stack.current_layer)
+            lambda: self.plot(self.canvas.stack.layers, self.canvas.stack.active_layer)
         )
         self.canvas.highlight_plot.connect(lambda layer: self._highlight_plot(layer))
 
@@ -171,7 +171,7 @@ class SplitView(QSplitter):
         self.phase_graph.addItem(self.phase_arrow)
 
     @Slot(float, str)
-    def _update_radial_pos(
+    def _update_radial_position(
         self,
         radius: float,
     ):
@@ -186,7 +186,7 @@ class SplitView(QSplitter):
         self.radial_lbl.setText(f"{x.item():0.3f}|{y:0.3f}")
 
     @Slot(float, str)
-    def _update_phase_pos(
+    def _update_phase_position(
         self,
         phase: float,
     ):

@@ -58,7 +58,6 @@ class Tab(QMainWindow):
 
         # The layer stack
         # ==================================================
-        # logger.info(f'Loading stack | TID: {threading.get_ident()}')
         self.stack = Stack(paths, conf.show_inactive_plots)
         self.load_stack.connect(self.stack.process)
         self.stack.set_canvas.connect(self.set_canvas)
@@ -91,8 +90,8 @@ class Tab(QMainWindow):
         self.dock.sig_set_layer_contour_colour.connect(
             self.canvas._set_slice_contour_colour
         )
-        self.dock.sig_set_radial_segments.connect(self.stack._slot_compute_radial_profile)
-        self.dock.sig_set_phase_segments.connect(self.stack._slot_compute_phase_profile)
+        self.dock.sig_set_radial_segments.connect(self.stack._compute_radial_profile)
+        self.dock.sig_set_phase_segments.connect(self.stack._compute_phase_profile)
 
         # Load the tab
         # ==================================================
@@ -136,6 +135,15 @@ class Tab(QMainWindow):
         # act_plot = QAction(QIcon.fromTheme("list-add"), "Plot radial profile", self.toolbar)
         # act_plot.triggered.connect(lambda: self.splitview.plot(self.stack.current_layer))
         # self.toolbar.addAction(act_plot)
+
+        # Profile statistics
+        act_profile_stats = QAction(
+            QIcon.fromTheme("edit-select-all"),
+            "Export profile statistics",
+            self.toolbar,
+        )
+        act_profile_stats.triggered.connect(lambda: self.stack._export_profile_statistics())
+        self.toolbar.addAction(act_profile_stats)
 
     @Slot()
     def _toggle_dock(self):

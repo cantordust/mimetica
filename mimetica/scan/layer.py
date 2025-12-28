@@ -30,25 +30,20 @@ class Layer:
 
         pad_lr = max(abs(min(0, min(mbc_x))), max(0, max(mbc_x) - w))
         pad_tb = max(abs(min(0, min(mbc_y))), max(0, max(mbc_y) - h))
-        pad = max(pad_lr, pad_tb)
+        pad = int(max(pad_lr, pad_tb) + 1)
 
         # Pad the image to accommodate for the contour
         # ==================================================
         self.canvas = np.pad(
             self.image,
-            int(pad),
+            pad,
             mode="constant",
             constant_values=0,
         )
 
+        # Translate the minimal bounding circle to account for the padding
         self.mbc = shp.affinity.translate(self.mbc, pad, pad)
-
-        # Use np.roll to swap h and w for the centre.
-        # self.centre = np.roll(
-        #     np.array(self.mbc.centroid.xy, dtype=np.uint32).flatten(), 1
-        # )
         self.centre = np.array(self.mbc.centroid.coords).flatten()
-
         self.radial_range = np.empty([])
         self.radial_profile = np.empty([])
         self.phase_range = np.empty([])

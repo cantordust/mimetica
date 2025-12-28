@@ -11,10 +11,10 @@ class Conf(QSettings):
     InactivePlotColour: str = "plots/inactive/colour"
     ShowInactivePlots: str = "plots/inactive/show"
     ActivePlotColour: str = "plots/active/colour"
-    InactiveSliceColour: str = "slice/inactive/colour"
-    ActiveSliceColour: str = "slice/active/colour"
-    SliceContourColour: str = "slice/contour/colour"
-    ShowStack: bool = "stack/show"
+    InactiveLayerColour: str = "layer/inactive/colour"
+    ActiveLayerColour: str = "layer/active/colour"
+    LayerContourColour: str = "layer/contour/colour"
+    # ShowStack: bool = "stack/show"
     RadialSamples: int = "analysis/radial_samples"
     PhaseSamples: int = "analysis/phase_samples"
 
@@ -70,21 +70,37 @@ class Conf(QSettings):
     ):
         self.setValue(Conf.ActivePlotColour, value)
 
-    # Slice contour colour
+    # Active layer colour
     @property
-    def slice_contour_colour(self) -> QColor:
+    def active_layer_colour(self) -> QColor:
         return self.value(
-            Conf.SliceContourColour,
+            Conf.ActiveLayerColour,
             QColor(255, 255, 0, 255),
             QColor,
         )
 
-    @slice_contour_colour.setter
-    def slice_contour_colour(
+    @active_layer_colour.setter
+    def active_layer_colour(
         self,
         value: QColor,
     ):
-        self.setValue(Conf.SliceContourColour, value)
+        self.setValue(Conf.ActiveLayerColour, value)
+
+    # Layer contour colour
+    @property
+    def layer_contour_colour(self) -> QColor:
+        return self.value(
+            Conf.LayerContourColour,
+            QColor(255, 255, 0, 255),
+            QColor,
+        )
+
+    @layer_contour_colour.setter
+    def layer_contour_colour(
+        self,
+        value: QColor,
+    ):
+        self.setValue(Conf.LayerContourColour, value)
 
     # Show stack
     @property

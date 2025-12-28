@@ -97,10 +97,10 @@ class Canvas(QWidget):
 
         # Layer highlighters
         # ==================================================
-        self.slice_contour_pen = pg.mkPen(color=conf.slice_contour_colour, width=1)
+        self.slice_contour_pen = pg.mkPen(color=conf.layer_contour_colour, width=1)
         self.slice_contour = None
         self.slice_centre_pen = pg.mkPen(
-            color=conf.slice_contour_colour, width=1
+            color=conf.layer_contour_colour, width=1
         )  # TODO: Separate conf entry
         self.slice_centre = None
 
@@ -167,7 +167,7 @@ class Canvas(QWidget):
     ):
         # Paint the result onto the canvas
         # ==================================================
-        self._draw(auto_range)
+        self.draw(auto_range)
 
         # Set up the ROI
         # ==================================================
@@ -177,7 +177,7 @@ class Canvas(QWidget):
         # ==================================================
         self.plot.emit()
 
-    def _draw(
+    def draw(
         self,
         auto_range: bool = False,
     ):
@@ -197,13 +197,13 @@ class Canvas(QWidget):
             out_range=(0.0, 1.0),
         ) * np.array(
             [
-                conf.slice_contour_colour.red(),
-                conf.slice_contour_colour.green(),
-                conf.slice_contour_colour.blue(),
+                conf.active_layer_colour.red(),
+                conf.active_layer_colour.green(),
+                conf.active_layer_colour.blue(),
             ]
         )
 
-        self.image[idx[0], idx[1], 3] = conf.slice_contour_colour.alpha()
+        self.image[idx[0], idx[1], 3] = conf.active_layer_colour.alpha()
 
         # Draw the centre
         # ==================================================
@@ -220,7 +220,7 @@ class Canvas(QWidget):
         if self.slice_contour is not None:
             self.iv.removeItem(self.slice_contour)
         self.slice_contour = Contour(
-            (lcx + 0.5, lcy + 0.5),
+            (lcx, lcy),
             radius=self.layer.mbr + 0.5,
             pen=self.slice_contour_pen,
         )
@@ -253,7 +253,7 @@ class Canvas(QWidget):
 
     @Slot()
     def _reset_zoom(self):
-        self._draw(auto_range=True)
+        self.draw(auto_range=True)
 
     def eventFilter(self, obj, event):
         if obj is self.window:
@@ -311,9 +311,13 @@ class Canvas(QWidget):
         self.setFocus()
 
     @Slot()
+    def _set_active_layer_colour(self):
+        self.draw()
+
+    @Slot()
     def _set_slice_contour_colour(self):
-        self.slice_contour_pen = pg.mkPen(color=conf.slice_contour_colour, width=1)
-        self._draw()
+        self.slice_contour_pen = pg.mkPen(color=conf.layer_contour_colour, width=1)
+        self.draw()
 
     @Slot(int, bool)
     def slot_select_layer(

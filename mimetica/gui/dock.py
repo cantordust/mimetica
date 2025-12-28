@@ -20,7 +20,8 @@ class Dock(QDockWidget):
     sig_show_inactive_plots = Signal()
     sig_set_active_plot_colour = Signal()
     sig_set_inactive_plot_colour = Signal()
-    sig_set_slice_contour_colour = Signal()
+    sig_set_layer_contour_colour = Signal()
+    sig_set_active_layer_colour = Signal()
     # sig_show_stack = Signal()
     sig_set_radial_segments = Signal(int)
     sig_set_phase_segments = Signal(int)
@@ -73,15 +74,25 @@ class Dock(QDockWidget):
             self._slot_set_inactive_plot_colour
         )
 
-        # Slice contour colour
+        # Active layer colour
         # ==================================================
-        self.slice_contour_colour_lbl = QLabel(f"Slice contour colour:", self)
-        self.slice_contour_colour_btn = QPushButton(self)
-        self.slice_contour_colour_btn.setStyleSheet(
-            f"background-color:rgba({as_rgba(conf.slice_contour_colour)});"
+        self.layer_colour_lbl = QLabel(f"Slice colour:", self)
+        self.active_layer_colour_btn = QPushButton(self)
+        self.active_layer_colour_btn.setStyleSheet(
+            f"background-color:rgba({as_rgba(conf.active_layer_colour)});"
         )
-        self.grid.addRow(self.slice_contour_colour_lbl, self.slice_contour_colour_btn)
-        self.slice_contour_colour_btn.pressed.connect(
+        self.grid.addRow(self.layer_colour_lbl, self.active_layer_colour_btn)
+        self.active_layer_colour_btn.pressed.connect(self._slot_set_active_layer_colour)
+
+        # Layer contour colour
+        # ==================================================
+        self.layer_contour_colour_lbl = QLabel(f"Slice contour colour:", self)
+        self.layer_contour_colour_btn = QPushButton(self)
+        self.layer_contour_colour_btn.setStyleSheet(
+            f"background-color:rgba({as_rgba(conf.layer_contour_colour)});"
+        )
+        self.grid.addRow(self.layer_contour_colour_lbl, self.layer_contour_colour_btn)
+        self.layer_contour_colour_btn.pressed.connect(
             self._slot_set_slice_contour_colour
         )
 
@@ -155,12 +166,22 @@ class Dock(QDockWidget):
             )
 
     @Slot()
-    def _slot_set_slice_contour_colour(self):
-        colour = get_colour(conf.slice_contour_colour, self)
+    def _slot_set_active_layer_colour(self):
+        colour = get_colour(conf.active_layer_colour, self)
         if colour.isValid():
-            conf.slice_contour_colour = colour
-            self.sig_set_slice_contour_colour.emit()
-            self.slice_contour_colour_btn.setStyleSheet(
+            conf.active_layer_colour = colour
+            self.sig_set_active_layer_colour.emit()
+            self.active_layer_colour_btn.setStyleSheet(
+                f"background-color:rgba({as_rgba(colour)});"
+            )
+
+    @Slot()
+    def _slot_set_slice_contour_colour(self):
+        colour = get_colour(conf.layer_contour_colour, self)
+        if colour.isValid():
+            conf.layer_contour_colour = colour
+            self.sig_set_layer_contour_colour.emit()
+            self.layer_contour_colour_btn.setStyleSheet(
                 f"background-color:rgba({as_rgba(colour)});"
             )
 

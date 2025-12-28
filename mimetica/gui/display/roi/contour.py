@@ -1,7 +1,7 @@
 import pyqtgraph as pg
 
 
-class Contour(pg.CircleROI):
+class Contour(pg.EllipseROI):
     """
     Circular contour subclass.
     """
@@ -13,10 +13,11 @@ class Contour(pg.CircleROI):
         args.setdefault("removable", False)
         args.setdefault("rotatable", False)
 
-        pg.CircleROI.__init__(
+        pg.EllipseROI.__init__(
             self,
             pos,
             1,
+            aspectLocked=True,
             **args,
         )
 

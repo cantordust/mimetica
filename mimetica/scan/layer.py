@@ -19,33 +19,41 @@ class Layer:
         path: Path,
     ):
         self.path = Path(path).resolve().absolute()
-
-        image = ski.io.imread(str(self.path), as_gray=True)
-        image = np.fliplr(image.T)
-
-        # Pad the image to accommodate for the contour
-        # ==================================================
-        pad = 2
-        self.image = np.pad(
-            image,
-            ((pad, pad), (pad, pad)),
-            mode="constant",
-            constant_values=0,
-        )
+        self.image = np.fliplr(ski.io.imread(str(self.path), as_gray=True).T)
+        h, w = self.image.shape
 
         # Image properties
         # ==================================================
         # Minimal bounding circle
         self.mbc, self.mbr = utils.compute_minimal_bounding_circle(self.image)
-        # Use np.roll to swap h and w for the centre.
-        self.centre = np.roll(
-            np.array(self.mbc.centroid.xy, dtype=np.uint32).flatten(), 1
+        mbc_x, mbc_y = self.mbc.boundary.coords.xy
+
+        pad_lr = max(abs(min(0, min(mbc_x))), max(0, max(mbc_x) - w))
+        pad_tb = max(abs(min(0, min(mbc_y))), max(0, max(mbc_y) - h))
+        pad = max(pad_lr, pad_tb)
+
+        # Pad the image to accommodate for the contour
+        # ==================================================
+        self.canvas = np.pad(
+            self.image,
+            int(pad),
+            mode="constant",
+            constant_values=0,
         )
-        self.radius = int(shp.minimum_bounding_radius(self.mbc))
+
+        self.mbc = shp.affinity.translate(self.mbc, pad, pad)
+
+        # Use np.roll to swap h and w for the centre.
+        # self.centre = np.roll(
+        #     np.array(self.mbc.centroid.xy, dtype=np.uint32).flatten(), 1
+        # )
+        self.centre = np.array(self.mbc.centroid.coords).flatten()
+
         self.radial_range = np.empty([])
         self.radial_profile = np.empty([])
         self.phase_range = np.empty([])
         self.phase_profile = np.empty([])
+        self.intersections = []
 
         # Extract contour, centre, etc.
         # ==================================================
@@ -58,7 +66,7 @@ class Layer:
         Returns:
             A mask as a NumPy array.
         """
-        Y, X = np.meshgrid[: self.image.shape[0], : self.image.shape[1]]
+        Y, X = np.meshgrid[: self.canvas.shape[0], : self.canvas.shape[1]]
         mask = np.sqrt((X - self.centre[0]) ** 2 + (Y - self.centre[1]) ** 2)
         mask = np.exp(-3 * mask / mask.max())
         return mask
@@ -76,16 +84,21 @@ class Layer:
         # Create an empty array
         self.radial_profile = np.zeros((conf.radial_samples,))
         self.radial_range = np.linspace(0, 1, len(self.radial_profile))
-        self.radii = np.linspace(1.0, self.radius, conf.radial_samples)
+        self.radii = np.linspace(1.0, self.mbr, conf.radial_samples)
 
         for idx, radius in enumerate(self.radii):
-            # Create a virtual circle with the right radius
+            # Create a virtual circle with the right radius.
+            # The 'andres' method does not leave gaps between
+            # consecutive rings if they are close enough.
             rr, cc = skd.circle_perimeter(
-                self.centre[0], self.centre[1], int(radius), method="andres"
+                int(self.centre[0]),
+                int(self.centre[1]),
+                int(radius),
+                method="andres",
             )
             # Find out how much material is sampled by the circle
             # and compute the density
-            circle = self.image[rr, cc]
+            circle = self.canvas[rr, cc]
             material = np.count_nonzero(circle)
             self.radial_profile[idx] = material / circle.size
 
@@ -94,15 +107,7 @@ class Layer:
         # Coordinates of the central point
         (cx, cy) = self.centre
 
-        # Get the coordinates of each pixel of the MBC
-        # (cont_xs, cont_ys) = skd.circle_perimeter(cx, cy, self.radius)
-
         # Compute the angles from the pixel coordinates.
-        # _cont_xs = cont_xs - cx
-        # _cont_ys = cont_ys - cy
-        # ratios = _cont_xs / np.sqrt(_cont_xs**2 + _cont_ys**2)
-        # angles = np.arccos(ratios)
-        # angles = np.where(_cont_ys < 0, 2 * np.pi - angles, angles)
         angles = conf.phase_samples
 
         # X and Y datasets for the phase profile
@@ -115,38 +120,26 @@ class Layer:
             shp.affinity.rotate(
                 shp.LineString(
                     [
-                        shp.Point(*self.centre),
-                        shp.Point(self.centre[0], self.centre[1] + self.mbr + 1),
+                        shp.Point(cx, cy),
+                        shp.Point(cx, cy + self.mbr),
                     ],
                 ),
-                angle,
-                origin=shp.Point(*self.centre),
+                angle - 90,
+                origin=shp.Point(cx, cy),
             )
             for angle in range(angles)
         ]
 
-        mbc_rr, mbc_cc = utils.draw_sorted_circle(self.centre, self.mbr)
+        for idx, spoke in enumerate(spokes):
+            # (end_x, end_y) = self.intersections[idx]
+            (cx, cy) = np.array(spoke.coords[0], dtype=np.int32)
+            (ex, ey) = np.array(spoke.coords[1], dtype=np.int32)
 
-        circle = shp.LineString(zip((mbc_rr).tolist(), (mbc_cc).tolist()))
-        endpoints = [
-            np.array(spoke.intersection(circle).coords.xy, dtype=np.uint32)
-            .flatten()
-            .tolist()
-            for spoke in spokes
-        ]
-
-        # Compute the X and Y coordinates for the pixels
-        # corresponding to the angles calculated above
-        # end_xs = (self.radius * np.cos(angles) + cx).astype(np.int32)
-        # end_ys = (self.radius * np.sin(angles) + cy).astype(np.int32)
-
-        # for idx, (end_x, end_y) in enumerate(zip(cont_ys, cont_xs)):
-        for idx, angle in enumerate(self.phase_range):
-            (end_x, end_y) = endpoints[idx]
             # Create a virtual line from the centre to the contour
-            rr, cc = np.array(skd.line(cx, cy, end_x, end_y))
+            rr, cc = np.array(skd.line(cx, cy, ex, ey))
+
             # Find out how much material is sampled by the line
             # and compute the density
-            line = self.image[rr, cc]
+            line = self.canvas[rr, cc]
             material = np.count_nonzero(line)
             self.phase_profile[idx] = material / line.size

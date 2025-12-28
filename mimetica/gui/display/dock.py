@@ -20,8 +20,9 @@ class Dock(QDockWidget):
     sig_show_inactive_plots = Signal()
     sig_set_active_plot_colour = Signal()
     sig_set_inactive_plot_colour = Signal()
+    sig_set_stack_contour_colour = Signal()
     sig_set_slice_contour_colour = Signal()
-    # sig_show_stack = Signal()
+    sig_show_stack = Signal()
     sig_set_radial_segments = Signal(int)
     sig_set_phase_segments = Signal(int)
 
@@ -73,6 +74,18 @@ class Dock(QDockWidget):
             self._slot_set_inactive_plot_colour
         )
 
+        # Stack contour colour
+        # ==================================================
+        self.stack_contour_colour_lbl = QLabel(f"Stack contour colour:", self)
+        self.stack_contour_colour_btn = QPushButton(self)
+        self.stack_contour_colour_btn.setStyleSheet(
+            f"background-color:rgba({as_rgba(conf.stack_contour_colour)});"
+        )
+        self.grid.addRow(self.stack_contour_colour_lbl, self.stack_contour_colour_btn)
+        self.stack_contour_colour_btn.pressed.connect(
+            self._slot_set_stack_contour_colour
+        )
+
         # Slice contour colour
         # ==================================================
         self.slice_contour_colour_lbl = QLabel(f"Slice contour colour:", self)
@@ -85,26 +98,25 @@ class Dock(QDockWidget):
             self._slot_set_slice_contour_colour
         )
 
-        # DEPRECATED
         # Show the stack
         # ==================================================
-        # self.show_stack_lbl = QLabel(f"Show the stack:", self)
-        # self.show_stack_cbox = QCheckBox(self)
-        # self.show_stack_cbox.setChecked(conf.show_stack)
-        # self.grid.addRow(self.show_stack_lbl, self.show_stack_cbox)
-        # self.show_stack_cbox.stateChanged.connect(self._slot_show_stack)
+        self.show_stack_lbl = QLabel(f"Show the stack:", self)
+        self.show_stack_cbox = QCheckBox(self)
+        self.show_stack_cbox.setChecked(conf.show_stack)
+        self.grid.addRow(self.show_stack_lbl, self.show_stack_cbox)
+        self.show_stack_cbox.stateChanged.connect(self._slot_show_stack)
 
         # Radial segments
         # ==================================================
         self.radial_segments_lbl = QLabel(f"Radial segments:", self)
         self.radial_segments_sbox = QSpinBox(
             self,
-            value=conf.radial_samples,
+            value=conf.radial_segments,
             minimum=1,
             maximum=1024,
             singleStep=1,
         )
-        self.radial_segments_sbox.setValue(conf.radial_samples)
+        self.radial_segments_sbox.setValue(conf.radial_segments)
         self.grid.addRow(self.radial_segments_lbl, self.radial_segments_sbox)
         self.radial_segments_sbox.valueChanged.connect(self._slot_set_radial_segments)
 
@@ -113,12 +125,13 @@ class Dock(QDockWidget):
         self.phase_segments_lbl = QLabel(f"Phase segments:", self)
         self.phase_segments_sbox = QSpinBox(
             self,
-            value=conf.phase_samples,
+            value=conf.phase_segments,
             minimum=120,
             maximum=720,
             singleStep=1,
+            suffix="°",
         )
-        self.phase_segments_sbox.setValue(conf.phase_samples)
+        self.phase_segments_sbox.setValue(conf.phase_segments)
         self.grid.addRow(self.phase_segments_lbl, self.phase_segments_sbox)
         self.phase_segments_sbox.valueChanged.connect(self._slot_set_phase_segments)
 
@@ -155,6 +168,16 @@ class Dock(QDockWidget):
             )
 
     @Slot()
+    def _slot_set_stack_contour_colour(self):
+        colour = get_colour(conf.stack_contour_colour, self)
+        if colour.isValid():
+            conf.stack_contour_colour = colour
+            self.sig_set_stack_contour_colour.emit()
+            self.stack_contour_colour_btn.setStyleSheet(
+                f"background-color:rgba({as_rgba(colour)});"
+            )
+
+    @Slot()
     def _slot_set_slice_contour_colour(self):
         colour = get_colour(conf.slice_contour_colour, self)
         if colour.isValid():
@@ -164,17 +187,18 @@ class Dock(QDockWidget):
                 f"background-color:rgba({as_rgba(colour)});"
             )
 
-    # @Slot()
-    # def _slot_show_stack(self):
-    #     conf.show_stack = self.show_stack_cbox.isChecked()
-    #     self.sig_show_stack.emit()
+    @Slot()
+    def _slot_show_stack(self):
+        conf.show_stack = self.show_stack_cbox.isChecked()
+        self.sig_show_stack.emit()
 
     @Slot()
     def _slot_set_radial_segments(self):
-        conf.radial_samples = self.radial_segments_sbox.value()
-        self.sig_set_radial_segments.emit(conf.radial_samples)
+        conf.radial_segments = self.radial_segments_sbox.value()
+        self.sig_set_radial_segments.emit(conf.radial_segments)
 
     @Slot()
     def _slot_set_phase_segments(self):
-        conf.phase_samples = self.phase_segments_sbox.value()
-        self.sig_set_phase_segments.emit(conf.phase_samples)
+        conf.phase_segments = self.phase_segments_sbox.value()
+        self.sig_set_phase_segments.emit(conf.phase_segments)
+

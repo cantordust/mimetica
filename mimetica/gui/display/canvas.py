@@ -17,7 +17,6 @@ from PySide6.QtWidgets import QSizePolicy
 import numpy as np
 import skimage as ski
 
-import shapely as shp
 import pyqtgraph as pg
 from pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
 from pyqtgraph import SignalProxy
@@ -27,8 +26,8 @@ from mimetica import ImageView
 from mimetica import Layer
 from mimetica import Stack
 from mimetica import conf
-from mimetica.gui.roi.contour import Contour
-from mimetica.gui.roi.target import Target
+from mimetica.gui.display.roi.contour import Contour
+from mimetica.gui.display.roi.target import Target
 
 
 class Canvas(QWidget):
@@ -106,6 +105,9 @@ class Canvas(QWidget):
 
         # Stack highlighters
         # ==================================================
+        self.stack_contour_pen = pg.mkPen(color=conf.stack_contour_colour, width=1)
+        self.stack_contour = None
+
         self.tb_scroll_area.setFixedHeight(110)
         self.tb_scroll_area.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
@@ -140,7 +142,7 @@ class Canvas(QWidget):
 
     @property
     def layer(self) -> Layer:
-        return self.stack.layers[self.stack.active_layer]
+        return self.stack.layers[self.stack.current_layer]
 
     def set_stack(
         self,
@@ -151,7 +153,7 @@ class Canvas(QWidget):
         # ==================================================
         self.stack = stack
         if len(self.stack.layers) > 0:
-            self.stack._set_active_layer()
+            self.stack._update_current_layer()
 
         # Update the thumbnails
         # ==================================================
@@ -184,16 +186,25 @@ class Canvas(QWidget):
         # Coordinates of the current layer and the stack
         # ==================================================
         lcx, lcy = self.layer.centre
+        scx, scy = self.stack.centre
 
-        # Reset the canvas
-        # ==================================================
-        self.image = np.zeros(self.layer.canvas.shape + (4,))
+        # # Reset the canvas
+        # # ==================================================
+        self.image = np.zeros(self.stack.merged.shape + (4,))
 
         # Draw the slice and potentially the stack
         # ==================================================
-        idx = np.argwhere(self.layer.canvas > 0).T
+        # if conf.show_stack:
+        #     idx = np.argwhere(self.stack.merged > 0).T
+        #     self.image[idx[0], idx[1], 0] = conf.stack_contour_colour.red()
+        #     self.image[idx[0], idx[1], 1] = conf.stack_contour_colour.green()
+        #     self.image[idx[0], idx[1], 2] = conf.stack_contour_colour.blue()
+        #     self.image[idx[0], idx[1], 3] = conf.stack_contour_colour.alpha()
+
+        idx = np.argwhere(self.layer.image > 0).T
         self.image[idx[0], idx[1], :3] = ski.exposure.rescale_intensity(
-            self.layer.canvas[idx[0], idx[1], None],
+            self.layer.image[idx[0], idx[1], None],
+            in_range=np.ubyte,
             out_range=(0.0, 1.0),
         ) * np.array(
             [
@@ -202,7 +213,19 @@ class Canvas(QWidget):
                 conf.slice_contour_colour.blue(),
             ]
         )
-
+        # self.image[..., :3] = ski.exposure.rescale_intensity(
+        #     self.layer.image[:,:,None],
+        #     in_range=np.ubyte,
+        #     out_range=(0.0, 1.0),
+        # ) * np.array(
+        #     [
+        #         conf.slice_contour_colour.red(),
+        #         conf.slice_contour_colour.green(),
+        #         conf.slice_contour_colour.blue(),
+        #     ]
+        # )
+        # self.image[idx[0], idx[1], 1] = self.layer.image[..., 1] # * conf.slice_contour_colour.green()
+        # self.image[idx[0], idx[1], 2] = self.layer.image[..., 2] # * conf.slice_contour_colour.blue()
         self.image[idx[0], idx[1], 3] = conf.slice_contour_colour.alpha()
 
         # Draw the centre
@@ -210,7 +233,7 @@ class Canvas(QWidget):
         if self.slice_centre is not None:
             self.iv.removeItem(self.slice_centre)
         self.slice_centre = Target(
-            (lcx + 0.5, lcy + 0.5),
+            (lcy + 0.5, lcx + 0.5),
             pen=self.slice_centre_pen,
         )
         self.iv.addItem(self.slice_centre)
@@ -220,11 +243,22 @@ class Canvas(QWidget):
         if self.slice_contour is not None:
             self.iv.removeItem(self.slice_contour)
         self.slice_contour = Contour(
-            (lcx + 0.5, lcy + 0.5),
-            radius=self.layer.mbr + 0.5,
+            (lcy + 0.5, lcx + 0.5),
+            radius=self.layer.mbr,
             pen=self.slice_contour_pen,
         )
         self.iv.addItem(self.slice_contour)
+
+        # Draw the stack contour
+        # ==================================================
+        if self.stack_contour is not None:
+            self.iv.removeItem(self.stack_contour)
+        self.stack_contour = Contour(
+            (scy + 0.5, scx + 0.5),
+            radius=self.stack.radius,
+            pen=self.stack_contour_pen,
+        )
+        self.iv.addItem(self.stack_contour)
 
         # Set the image
         # ==================================================
@@ -275,10 +309,11 @@ class Canvas(QWidget):
             if self.iv.radial_roi is not None:
                 pos = self.iv.getView().vb.mapSceneToView(event)[0]
 
-                cx = pos.x() - self.layer.centre[0] - 0.5
-                cy = pos.y() - self.layer.centre[1] - 0.5
+                cx = pos.x() - self.layer.centre[1] - 0.5
+                cy = pos.y() - self.layer.centre[0] - 0.5
                 r = np.sqrt(cx**2 + cy**2)
                 radius = r / self.layer.mbr
+                r2 = 2 * r
                 if radius <= 1:
                     phase = 0 if r == 0 else np.rad2deg(np.arccos(cx / r))
 
@@ -286,7 +321,7 @@ class Canvas(QWidget):
                         phase = 360 - phase
 
                     self.iv.radial_roi.setSize(
-                        2 * r,
+                        r2,
                         center=(0.5, 0.5),
                         update=True,
                         finish=True,
@@ -301,8 +336,6 @@ class Canvas(QWidget):
         toggle: bool,
     ):
         self.mouse_tracking_toggle = toggle
-
-        # TODO: Add a setting to control the residual visibility
         # self.iv.phase_roi.setVisible(toggle)
         # self.iv.radial_roi.setVisible(toggle)
 
@@ -315,18 +348,43 @@ class Canvas(QWidget):
         self.slice_contour_pen = pg.mkPen(color=conf.slice_contour_colour, width=1)
         self._draw()
 
+    @Slot()
+    def _set_stack_contour_colour(self):
+        self.stack_contour_pen = pg.mkPen(color=conf.stack_contour_colour, width=1)
+        self._draw()
+
+    @Slot()
+    def _set_show_stack(self):
+        self._draw()
+
+    @Slot(int)
+    def _slot_compute_radial_profile(self, segments: int):
+        if self.layer is None:
+            return
+
+        self.layer.compute_radial_profile()
+        self.plot.emit()
+
+    @Slot(int)
+    def _slot_compute_phase_profile(self, segments: int):
+        if self.layer is None:
+            return
+
+        self.layer.compute_phase_profile()
+        self.plot.emit()
+
     @Slot(int, bool)
     def slot_select_layer(
         self,
         layer: int,
         auto_range: bool = False,
     ):
-        cur_layer = self.stack.active_layer
+        cur_layer = self.stack.current_layer
         if cur_layer is None:
             cur_layer = 0
 
         # Update the layer
-        self.stack._set_active_layer(layer)
+        self.stack._update_current_layer(layer)
 
         # Highlight the selected thumbnail
         self.thumbnails[cur_layer].deselect()

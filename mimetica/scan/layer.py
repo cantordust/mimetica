@@ -78,8 +78,8 @@ class Layer:
     def compute_radial_profile(self):
         # Create an empty array
         self.radial_profile = np.zeros((conf.radial_samples,))
-        self.radial_range = np.linspace(0, 1, len(self.radial_profile))
         self.radii = np.linspace(1.0, self.mbr, conf.radial_samples)
+        self.radial_range = np.linspace(0.0, 1.0, conf.radial_samples + 1)[1:]
 
         for idx, radius in enumerate(self.radii):
             # Create a virtual circle with the right radius.
@@ -106,7 +106,7 @@ class Layer:
         angles = conf.phase_samples
 
         # X and Y datasets for the phase profile
-        self.phase_range = np.linspace(0, 360, angles, endpoint=False)
+        self.phase_range = np.linspace(0.0, 360.0, angles, endpoint=False)
         self.phase_profile = np.zeros_like(self.phase_range)
 
         # Draw lines ('spokes') from the centre to the MBC, each rotated by

@@ -1,5 +1,6 @@
 from PySide6 import QtGui
 from PySide6.QtGui import QPainter
+from PySide6.QtGui import QColor
 
 import pyqtgraph as pg
 from pyqtgraph import functions as pgfn
@@ -19,16 +20,18 @@ class RadialLine(pg.ROI):
         if pos is None:
             pos = [0, 0]
 
+        args.setdefault("pen", pg.mkPen(color=QColor(255, 0, 0, 255), width=1.5))
+
         self.endpoints = [pg.Point(p) for p in positions]
-        pg.ROI.__init__(self, pos, [1, 1], **args)
         if len(positions) > 2:
             raise Exception(
                 "LineROI must be defined by exactly 2 positions. For more points, use PolyLineROI."
             )
+        super().__init__(pos, [1, 1], **args)
 
     def paint(self, p: QPainter, *args):
+        super().paint(p, *args)
         p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        p.setPen(self.currentPen)
         p.drawLine(self.endpoints[0], self.endpoints[1])
 
     def listPoints(self):

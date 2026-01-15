@@ -18,6 +18,12 @@ from mimetica import conf
 from mimetica import logger
 from mimetica import Tab
 
+import pyqtgraph
+pyqtgraph.setConfigOptions(
+    background="#ffffff",
+    foreground="k",
+)
+
 
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):

@@ -39,7 +39,7 @@ class SplitView(QSplitter):
         self.radial_graph = Plot(
             title="Radial profile",
             labels={
-                "left": "Density [a.u.]",
+                "left": "Material fraction",
                 "bottom": "Normalised radius [a.u.]",
             },
         )
@@ -60,7 +60,7 @@ class SplitView(QSplitter):
         self.phase_graph = Plot(
             title="Phase profile",
             labels={
-                "left": "Density [a.u.]",
+                "left": "Material fraction",
                 "bottom": "Angle [deg]",
             },
         )
@@ -79,14 +79,14 @@ class SplitView(QSplitter):
         # Pens
         # ==================================================
         # TODO: Add to the configuration
-        self.active_plot_pen_width = 1.0
+        self.active_plot_pen_width = 1.5
         self.active_plot_pen = pg.mkPen(
             color=conf.active_plot_colour,
             width=self.active_plot_pen_width,
         )
 
         # TODO: Add to the configuration
-        self.inactive_plot_pen_width = 0.5
+        self.inactive_plot_pen_width = 0.75
         self.inactive_plot_pen = pg.mkPen(
             color=conf.inactive_plot_colour,
             width=self.inactive_plot_pen_width,

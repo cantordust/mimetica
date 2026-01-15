@@ -92,7 +92,7 @@ class Layer:
                 method="andres",
             )
             # Find out how much material is sampled by the circle
-            # and compute the density
+            # and compute the material fraction
             circle = self.canvas[rr, cc]
             material = np.count_nonzero(circle)
             self.radial_profile[idx] = material / circle.size
@@ -134,7 +134,7 @@ class Layer:
             rr, cc = np.array(skd.line(cx, cy, ex, ey))
 
             # Find out how much material is sampled by the line
-            # and compute the density
+            # and compute the material fraction
             line = self.canvas[rr, cc]
             material = np.count_nonzero(line)
             self.phase_profile[idx] = material / line.size
